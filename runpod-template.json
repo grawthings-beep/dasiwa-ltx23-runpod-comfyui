@@ -1,6 +1,6 @@
 {
   "name": "dasiwa-ltx23-omniforge-comfyui",
-  "imageName": "ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.0",
+  "imageName": "ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.1",
   "category": "NVIDIA",
   "containerDiskInGb": 80,
   "dockerEntrypoint": [],

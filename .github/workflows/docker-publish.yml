@@ -39,5 +39,5 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:0.1.0
+            ${{ env.IMAGE_NAME }}:0.1.1
             ${{ env.IMAGE_NAME }}:latest
