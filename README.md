@@ -29,25 +29,25 @@ grawthings-beep/dasiwa-ltx23-runpod-comfyui
 Recommended container image:
 
 ```text
-ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.4
+ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.5
 ```
 
 ```bash
-docker build --platform linux/amd64 -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.4 .
-docker push ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.4
+docker build --platform linux/amd64 -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.5 .
+docker push ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.5
 ```
 
 Optional SageAttention build:
 
 ```bash
-docker build --platform linux/amd64 --build-arg INSTALL_SAGEATTENTION=true -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.4-sage .
+docker build --platform linux/amd64 --build-arg INSTALL_SAGEATTENTION=true -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.5-sage .
 ```
 
 ## RunPod template settings
 
 Use `runpod-template.json` as the API payload or fill the RunPod UI with these values:
 
-- Container image: `ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.4`
+- Container image: `ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.5`
 - Container disk: `80 GB`
 - Volume disk: `160 GB`
 - Volume mount path: `/workspace`
@@ -59,6 +59,7 @@ ComfyUI runs on HTTP port `8188`.
 The Docker base image is pinned to CUDA 12.4.1 to avoid RunPod hosts with older NVIDIA drivers failing before the container starts.
 The Transformers package is pinned to `4.56.2` because newer releases import continuous-batching modules that require newer Torch APIs than the CUDA 12.4 base provides.
 ComfyUI starts with `--enable-cors-header` so RunPod's proxy does not trigger host/origin 403 responses.
+The startup script creates tiny `placeholder.mp4` and `placeholder.mp3` input files so inactive video/audio branches do not fail validation before you replace them.
 
 ## Model behavior
 

@@ -44,9 +44,13 @@ def remove_missing_tiled_node(container):
             widgets = node.get("widgets_values")
             if isinstance(widgets, list) and widgets:
                 widgets[0] = False
+            fallback_link = None
+            for input_ in node.get("inputs", []):
+                if input_.get("name") == "on_false":
+                    fallback_link = input_.get("link")
             for input_ in node.get("inputs", []):
                 if input_.get("link") in removed_link_ids:
-                    input_["link"] = None
+                    input_["link"] = fallback_link
 
     for node in nodes:
         for output in node.get("outputs", []):

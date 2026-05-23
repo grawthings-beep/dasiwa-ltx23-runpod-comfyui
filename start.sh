@@ -16,6 +16,21 @@ if [ ! -d "${COMFYUI_DIR}/.git" ]; then
   rsync -a /opt/ComfyUI/ "${COMFYUI_DIR}/"
 fi
 
+mkdir -p "${COMFYUI_DIR}/input"
+if [ ! -s "${COMFYUI_DIR}/input/placeholder.mp4" ]; then
+  ffmpeg -hide_banner -loglevel error -y \
+    -f lavfi -i color=c=black:s=512x512:r=24:d=1 \
+    -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000 \
+    -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac \
+    "${COMFYUI_DIR}/input/placeholder.mp4" || true
+fi
+
+if [ ! -s "${COMFYUI_DIR}/input/placeholder.mp3" ]; then
+  ffmpeg -hide_banner -loglevel error -y \
+    -f lavfi -i anullsrc=channel_layout=stereo:sample_rate=48000:d=1 \
+    -c:a libmp3lame "${COMFYUI_DIR}/input/placeholder.mp3" || true
+fi
+
 mkdir -p "${COMFYUI_DIR}/user/default/workflows"
 cp -n /opt/workflows/*.json "${COMFYUI_DIR}/user/default/workflows/" 2>/dev/null || true
 
