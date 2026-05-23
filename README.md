@@ -29,25 +29,25 @@ grawthings-beep/dasiwa-ltx23-runpod-comfyui
 Recommended container image:
 
 ```text
-ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.3
+ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.4
 ```
 
 ```bash
-docker build --platform linux/amd64 -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.3 .
-docker push ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.3
+docker build --platform linux/amd64 -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.4 .
+docker push ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.4
 ```
 
 Optional SageAttention build:
 
 ```bash
-docker build --platform linux/amd64 --build-arg INSTALL_SAGEATTENTION=true -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.3-sage .
+docker build --platform linux/amd64 --build-arg INSTALL_SAGEATTENTION=true -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.4-sage .
 ```
 
 ## RunPod template settings
 
 Use `runpod-template.json` as the API payload or fill the RunPod UI with these values:
 
-- Container image: `ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.3`
+- Container image: `ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.4`
 - Container disk: `80 GB`
 - Volume disk: `160 GB`
 - Volume mount path: `/workspace`
@@ -81,6 +81,7 @@ The downloader appends the token at runtime and masks it in logs.
 
 - `DasiwaLTX23WorkflowsI2VFLF2V_omniforgeCLTX23V36.json`: original file copied from Downloads.
 - `DasiwaLTX23WorkflowsI2VFLF2V_omniforgeCLTX23V36_runpod-default.json`: same workflow, but main UNet changed to the default public LTX 2.3 FP8 transformer file.
+- `DasiwaLTX23WorkflowsI2VFLF2V_omniforgeCLTX23V36_runpod-no-ltx-tiled-decode.json`: recommended RunPod workflow. It removes the old optional `LTXVSpatioTemporalTiledVAEDecode` branch that current ComfyUI-LTXVideo builds no longer expose.
 
 On Pod start, both files are copied to:
 
