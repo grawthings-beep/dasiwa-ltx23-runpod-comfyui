@@ -1,0 +1,112 @@
+{
+  "schema_version": 1,
+  "custom_nodes": [
+    {
+      "name": "ComfyUI-Manager",
+      "directory": "ComfyUI-Manager",
+      "repository": "https://github.com/Comfy-Org/ComfyUI-Manager.git",
+      "ref": "d60e603467d6f6c275b7cdbeaa7b027789ab104f",
+      "cnr_ids": []
+    },
+    {
+      "name": "ComfyUI-VideoHelperSuite",
+      "directory": "ComfyUI-VideoHelperSuite",
+      "repository": "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git",
+      "ref": "4ee72c065db22c9d96c2427954dc69e7b908444b",
+      "cnr_ids": [
+        "comfyui-videohelpersuite"
+      ]
+    },
+    {
+      "name": "rgthree-comfy",
+      "directory": "rgthree-comfy",
+      "repository": "https://github.com/rgthree/rgthree-comfy.git",
+      "ref": "738105af5fb14e96fbecaf406dc356e284797e8c",
+      "cnr_ids": [
+        "rgthree-comfy"
+      ]
+    },
+    {
+      "name": "comfyui-WhiteRabbit",
+      "directory": "comfyui-WhiteRabbit",
+      "repository": "https://github.com/Artificial-Sweetener/comfyui-WhiteRabbit.git",
+      "ref": "607de1b4679b88a09932c1768db633450ace56b9",
+      "cnr_ids": [
+        "whiterabbit"
+      ]
+    },
+    {
+      "name": "ComfyUI-KJNodes",
+      "directory": "ComfyUI-KJNodes",
+      "repository": "https://github.com/kijai/ComfyUI-KJNodes.git",
+      "ref": "4da081432352991af8c7767b064e88ef6fd3b298",
+      "cnr_ids": [
+        "comfyui-kjnodes"
+      ]
+    },
+    {
+      "name": "ComfyUI-DaSiWa-Nodes",
+      "directory": "ComfyUI-DaSiWa-Nodes",
+      "repository": "https://github.com/darksidewalker/ComfyUI-DaSiWa-Nodes.git",
+      "ref": "b6e9414fe0baa446aa5ae69c2ee77c335f54d352",
+      "cnr_ids": [],
+      "provides": [
+        "DaSiWa_LTX2LoraLoader",
+        "DaSiWa_NodeStatusSwitch",
+        "DaSiWa_ResolutionScaleCalculator",
+        "DaSiWa_RTX_UpscalerRefiner",
+        "DaSiWa_Watermark"
+      ]
+    },
+    {
+      "name": "WhatDreamsCost-ComfyUI",
+      "directory": "WhatDreamsCost-ComfyUI",
+      "repository": "https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI.git",
+      "ref": "da7c5d351b9e3773e0a01391875dd01aa02f1175",
+      "cnr_ids": [
+        "whatdreamscost-comfyui"
+      ],
+      "provides": [
+        "LTXDirector",
+        "LTXDirectorGuide"
+      ]
+    },
+    {
+      "name": "ComfyUI-LTXVideo",
+      "directory": "ComfyUI-LTXVideo",
+      "repository": "https://github.com/Lightricks/ComfyUI-LTXVideo.git",
+      "ref": "229437c6b65796d6a7a63ae34be2bd5ba31fa543",
+      "cnr_ids": [
+        "comfyui-ltxvideo"
+      ],
+      "provides": [
+        "LTXVSpatioTemporalTiledVAEDecode"
+      ]
+    },
+    {
+      "name": "ComfyUI-GGUF",
+      "directory": "ComfyUI-GGUF",
+      "repository": "https://github.com/city96/ComfyUI-GGUF.git",
+      "ref": "6ea2651e7df66d7585f6ffee804b20e92fb38b8a",
+      "cnr_ids": [
+        "comfyui-gguf"
+      ],
+      "provides": [
+        "DualCLIPLoaderGGUF",
+        "UnetLoaderGGUF"
+      ]
+    },
+    {
+      "name": "Nvidia_RTX_Nodes_ComfyUI",
+      "directory": "Nvidia_RTX_Nodes_ComfyUI",
+      "repository": "https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI.git",
+      "ref": "892515e3eb9a4920a131a502a047e47adca9eb0d",
+      "cnr_ids": [
+        "comfyui_nvidia_rtx_nodes"
+      ],
+      "provides": [
+        "RTXVideoSuperResolution"
+      ]
+    }
+  ]
+}

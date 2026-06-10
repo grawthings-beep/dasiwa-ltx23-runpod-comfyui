@@ -1,6 +1,6 @@
 {
   "name": "dasiwa-ltx23-omniforge-comfyui",
-  "imageName": "ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.6",
+  "imageName": "ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.0",
   "category": "NVIDIA",
   "containerDiskInGb": 80,
   "dockerEntrypoint": [],
@@ -8,12 +8,11 @@
   "env": {
     "COMFYUI_PORT": "8188",
     "DOWNLOAD_MODELS": "true",
-    "DOWNLOAD_DEFAULT_UNET": "false",
+    "DOWNLOAD_DEFAULT_UNET": "true",
     "DOWNLOAD_OPTIONAL_LORA": "true",
-    "DOWNLOAD_OPTIONAL_POST_MODELS": "true",
-    "MAIN_UNET_URL": "https://civitai.com/api/download/models/2917963?type=Model&format=SafeTensor&size=full&fp=fp8",
-    "MAIN_UNET_NAME": "SolsticeCoin_v2_fp8_mixed.safetensors",
-    "CIVITAI_TOKEN": "{{ RUNPOD_SECRET_civitai_token }}"
+    "DOWNLOAD_OPTIONAL_POST_MODELS": "false",
+    "MAIN_UNET_URL": "",
+    "MAIN_UNET_NAME": "ltx-2.3-22b-distilled_transformer_only_fp8_scaled.safetensors"
   },
   "isPublic": false,
   "isServerless": false,
@@ -22,7 +21,7 @@
     "8888/http",
     "22/tcp"
   ],
-  "readme": "ComfyUI template for DaSiWa LTX 2.3 OmniForge. Open port 8188 for ComfyUI. Models are downloaded to /workspace/ComfyUI/models on first start.",
+  "readme": "ComfyUI template for DaSiWa LTX 2.3 OmniForge V39. Open port 8188 and use the V39_runpod workflow. Models are downloaded to /workspace/ComfyUI/models.",
   "volumeInGb": 160,
   "volumeMountPath": "/workspace"
 }

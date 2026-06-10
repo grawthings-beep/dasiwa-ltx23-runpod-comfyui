@@ -1,6 +1,8 @@
 ARG BASE_IMAGE=runpod/pytorch:2.4.0-py3.11-cuda12.4.1-devel-ubuntu22.04
 FROM ${BASE_IMAGE}
 
+ARG COMFYUI_REF=039ed38ed10ad0072a13f6471e06913ed33d5e56
+
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -31,7 +33,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m pip install --upgrade pip setuptools wheel
 
 WORKDIR /opt
-RUN git clone --depth=1 https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI
+RUN git init /opt/ComfyUI \
+    && git -C /opt/ComfyUI remote add origin https://github.com/comfyanonymous/ComfyUI.git \
+    && git -C /opt/ComfyUI fetch --depth=1 origin "${COMFYUI_REF}" \
+    && git -C /opt/ComfyUI checkout --detach FETCH_HEAD \
+    && test "$(git -C /opt/ComfyUI rev-parse HEAD)" = "${COMFYUI_REF}"
 
 WORKDIR /opt/ComfyUI
 RUN python -m pip install --no-cache-dir -r requirements.txt \
@@ -49,26 +55,35 @@ RUN python -m pip install --no-cache-dir -r requirements.txt \
       soundfile \
       "transformers[timm]==4.56.2"
 
-WORKDIR /opt/ComfyUI/custom_nodes
-RUN git clone --depth=1 https://github.com/Comfy-Org/ComfyUI-Manager.git ComfyUI-Manager \
-    && git clone --depth=1 https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git ComfyUI-VideoHelperSuite \
-    && git clone --depth=1 https://github.com/rgthree/rgthree-comfy.git rgthree-comfy \
-    && git clone --depth=1 https://github.com/Artificial-Sweetener/comfyui-WhiteRabbit.git comfyui-WhiteRabbit \
-    && git clone --depth=1 https://github.com/kijai/ComfyUI-KJNodes.git ComfyUI-KJNodes \
-    && git clone --depth=1 https://github.com/darksidewalker/ComfyUI-DaSiWa-Nodes.git ComfyUI-DaSiWa-Nodes \
-    && git clone --depth=1 https://github.com/Lightricks/ComfyUI-LTXVideo.git ComfyUI-LTXVideo \
-    && git clone --depth=1 https://github.com/city96/ComfyUI-GGUF.git ComfyUI-GGUF \
-    && git clone --depth=1 https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI.git Nvidia_RTX_Nodes_ComfyUI
+COPY custom_nodes.lock.json /tmp/custom_nodes.lock.json
+COPY scripts/install_custom_nodes.py /tmp/install_custom_nodes.py
+RUN python /tmp/install_custom_nodes.py \
+      --manifest /tmp/custom_nodes.lock.json \
+      --destination /opt/ComfyUI/custom_nodes
 
+ARG INSTALL_NVIDIA_VFX=false
 WORKDIR /opt/ComfyUI
 RUN set -eux; \
     for req in custom_nodes/*/requirements.txt; do \
-      if [ -f "$req" ]; then python -m pip install --no-cache-dir -r "$req"; fi; \
+      if [ ! -f "$req" ]; then continue; fi; \
+      if [ "${INSTALL_NVIDIA_VFX}" = "true" ]; then \
+        python -m pip install --no-cache-dir -r "$req"; \
+      else \
+        grep -viE '^[[:space:]]*nvidia-vfx([<>=!~].*)?[[:space:]]*$' "$req" \
+          > /tmp/custom-node-requirements.txt || true; \
+        python -m pip install --no-cache-dir -r /tmp/custom-node-requirements.txt; \
+      fi; \
     done; \
     python -m pip install --no-cache-dir --upgrade "transformers[timm]==4.56.2"
 
 COPY scripts/patch_ltxvideo_kornia.py /tmp/patch_ltxvideo_kornia.py
 RUN python /tmp/patch_ltxvideo_kornia.py /opt/ComfyUI/custom_nodes/ComfyUI-LTXVideo/pyramid_blending.py
+
+COPY workflows /opt/workflows
+COPY scripts/validate_workflow_nodes.py /tmp/validate_workflow_nodes.py
+RUN python /tmp/validate_workflow_nodes.py \
+      --comfy-dir /opt/ComfyUI \
+      /opt/workflows/DasiwaLTX23WorkflowsI2VFLF2V_omniforgeCLTX23V39_runpod.json
 
 ARG INSTALL_SAGEATTENTION=false
 RUN if [ "${INSTALL_SAGEATTENTION}" = "true" ]; then \
@@ -77,7 +92,6 @@ RUN if [ "${INSTALL_SAGEATTENTION}" = "true" ]; then \
 
 COPY start.sh /start-comfy.sh
 COPY download_models.sh /download_models.sh
-COPY workflows /opt/workflows
 
 RUN chmod +x /start-comfy.sh /download_models.sh
 

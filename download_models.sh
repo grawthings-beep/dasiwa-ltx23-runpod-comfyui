@@ -77,10 +77,16 @@ fi
 
 download "https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/vae/LTX23_audio_vae_bf16.safetensors?download=true" \
   "${MODELS_DIR}/vae/LTX/LTX23_audio_vae_bf16.safetensors"
+link_model "${MODELS_DIR}/vae/LTX/LTX23_audio_vae_bf16.safetensors" \
+  "${MODELS_DIR}/vae/LTX2/LTX23_audio_vae_bf16.safetensors"
 download "https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/vae/LTX23_video_vae_bf16.safetensors?download=true" \
   "${MODELS_DIR}/vae/LTX/LTX23_video_vae_bf16.safetensors"
+link_model "${MODELS_DIR}/vae/LTX/LTX23_video_vae_bf16.safetensors" \
+  "${MODELS_DIR}/vae/LTX2/LTX23_video_vae_bf16.safetensors"
 download "https://huggingface.co/Kijai/LTX2.3_comfy/resolve/main/vae/taeltx2_3.safetensors?download=true" \
   "${MODELS_DIR}/vae/LTX/taeltx2_3.safetensors"
+link_model "${MODELS_DIR}/vae/LTX/taeltx2_3.safetensors" \
+  "${MODELS_DIR}/vae/LTX2/taeltx2_3.safetensors"
 
 download "https://huggingface.co/DreamFast/gemma-3-12b-it-heretic-v2/resolve/main/comfyui/gemma-3-12b-it-heretic-v2_fp8_e4m3fn.safetensors?download=true" \
   "${MODELS_DIR}/text_encoders/gemma-3-12b-it-heretic-v2_fp8_e4m3fn.safetensors"
