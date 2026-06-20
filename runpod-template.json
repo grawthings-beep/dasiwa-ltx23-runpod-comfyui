@@ -1,6 +1,6 @@
 {
   "name": "dasiwa-ltx23-omniforge-comfyui",
-  "imageName": "ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.1.6",
+  "imageName": "ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.0",
   "category": "NVIDIA",
   "containerDiskInGb": 80,
   "dockerEntrypoint": [],
@@ -11,8 +11,12 @@
     "DOWNLOAD_DEFAULT_UNET": "false",
     "DOWNLOAD_OPTIONAL_LORA": "true",
     "DOWNLOAD_OPTIONAL_POST_MODELS": "true",
-    "MAIN_UNET_URL": "https://civitai.com/api/download/models/2917963?type=Model&format=SafeTensor&size=full&fp=fp8",
-    "MAIN_UNET_NAME": "SolsticeCoin_v2_fp8_mixed.safetensors",
+    "MAX_PARALLEL_DOWNLOADS": "4",
+    "ARIA2_CONNECTIONS": "8",
+    "ARIA2_SPLIT": "8",
+    "MAIN_UNET_URL": "https://civitai.com/api/download/models/2967331?type=Model&format=SafeTensor&size=full&fp=fp8",
+    "MAIN_UNET_NAME": "LTX2/DaSiWa-LTX23-GoldenLace-v3_fp8.safetensors",
+    "MAIN_UNET_SHA256": "86E14FD4EAF24AE39D3BB2497E9A86C723888A9172CFFECA31C9730DC2C126E2",
     "CIVITAI_TOKEN": "{{ RUNPOD_SECRET_civitai_token }}"
   },
   "isPublic": false,

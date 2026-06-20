@@ -31,6 +31,22 @@ if [ ! -s "${COMFYUI_DIR}/input/placeholder.mp3" ]; then
     -c:a libmp3lame "${COMFYUI_DIR}/input/placeholder.mp3" || true
 fi
 
+create_placeholder_png() {
+  local file="$1"
+  local size="$2"
+  local color="$3"
+
+  if [ ! -s "${file}" ]; then
+    ffmpeg -hide_banner -loglevel error -y \
+      -f lavfi -i "color=c=${color}:s=${size}" \
+      -frames:v 1 -pix_fmt rgba "${file}" || true
+  fi
+}
+
+create_placeholder_png "${COMFYUI_DIR}/input/example.png" "1024x1024" "black"
+create_placeholder_png "${COMFYUI_DIR}/input/#Watermark-Darksidewalker-Emblem.png" "64x64" "black@0.0"
+create_placeholder_png "${COMFYUI_DIR}/input/#audio-mark.png" "64x64" "black@0.0"
+
 mkdir -p "${COMFYUI_DIR}/user/default/workflows"
 cp -n /opt/workflows/*.json "${COMFYUI_DIR}/user/default/workflows/" 2>/dev/null || true
 

@@ -57,6 +57,7 @@ RUN git clone --depth=1 https://github.com/Comfy-Org/ComfyUI-Manager.git ComfyUI
     && git clone --depth=1 https://github.com/kijai/ComfyUI-KJNodes.git ComfyUI-KJNodes \
     && git clone --depth=1 https://github.com/darksidewalker/ComfyUI-DaSiWa-Nodes.git ComfyUI-DaSiWa-Nodes \
     && git clone --depth=1 https://github.com/Lightricks/ComfyUI-LTXVideo.git ComfyUI-LTXVideo \
+    && git clone --depth=1 https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI.git WhatDreamsCost-ComfyUI \
     && git clone --depth=1 https://github.com/city96/ComfyUI-GGUF.git ComfyUI-GGUF \
     && git clone --depth=1 https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI.git Nvidia_RTX_Nodes_ComfyUI
 
