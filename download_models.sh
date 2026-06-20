@@ -10,11 +10,16 @@ set -Eeuo pipefail
 : "${ARIA2_CONNECTIONS:=8}"
 : "${ARIA2_SPLIT:=8}"
 : "${VERIFY_MODEL_HASHES:=false}"
-: "${MAIN_UNET_NAME:=LTX2/DaSiWa-LTX23-GoldenLace-v3_fp8.safetensors}"
-: "${MAIN_UNET_URL:=https://civitai.com/api/download/models/2967331?type=Model&format=SafeTensor&size=full&fp=fp8}"
-: "${MAIN_UNET_SHA256:=86E14FD4EAF24AE39D3BB2497E9A86C723888A9172CFFECA31C9730DC2C126E2}"
 : "${CIVITAI_TOKEN:=}"
 : "${HF_TOKEN:=}"
+
+V39_MAIN_UNET_NAME="LTX2/DaSiWa-LTX23-GoldenLace-v3_fp8.safetensors"
+V39_MAIN_UNET_URL="https://civitai.com/api/download/models/2967331?type=Model&format=SafeTensor&size=full&fp=fp8"
+V39_MAIN_UNET_SHA256="86E14FD4EAF24AE39D3BB2497E9A86C723888A9172CFFECA31C9730DC2C126E2"
+
+: "${MAIN_UNET_NAME:=${V39_MAIN_UNET_NAME}}"
+: "${MAIN_UNET_URL:=${V39_MAIN_UNET_URL}}"
+: "${MAIN_UNET_SHA256:=${V39_MAIN_UNET_SHA256}}"
 
 MODELS_DIR="${COMFYUI_DIR}/models"
 DOWNLOAD_PIDS=()
@@ -53,6 +58,15 @@ mask_url() {
   fi
 
   printf '%s' "${url}"
+}
+
+normalize_model_defaults() {
+  if [[ "${MAIN_UNET_NAME}" == "SolsticeCoin_v2_fp8_mixed.safetensors" || "${MAIN_UNET_URL}" == *"/2917963"* ]]; then
+    echo "Detected legacy Solstice MAIN_UNET settings; using V39 Golden Lace v3 defaults."
+    MAIN_UNET_NAME="${V39_MAIN_UNET_NAME}"
+    MAIN_UNET_URL="${V39_MAIN_UNET_URL}"
+    MAIN_UNET_SHA256="${V39_MAIN_UNET_SHA256}"
+  fi
 }
 
 verify_hash() {
@@ -110,7 +124,27 @@ download() {
     aria2_args+=(--header="Authorization: Bearer ${HF_TOKEN}")
   fi
 
-  aria2c "${aria2_args[@]}" "${effective_url}"
+  if ! aria2c "${aria2_args[@]}" "${effective_url}"; then
+    echo "aria2 failed for ${safe_url}; retrying with single-stream curl." >&2
+    rm -f "${tmp}" "${tmp}.aria2"
+
+    local -a curl_args=(
+      --fail
+      --location
+      --retry 8
+      --retry-delay 10
+      --retry-all-errors
+      --connect-timeout 30
+      --output "${tmp}"
+    )
+
+    if [[ -n "${HF_TOKEN}" && "${url}" == *"huggingface.co"* ]]; then
+      curl_args+=(--header "Authorization: Bearer ${HF_TOKEN}")
+    fi
+
+    curl "${curl_args[@]}" "${effective_url}"
+  fi
+
   verify_hash "${tmp}" "${sha256}"
   mv -f "${tmp}" "${dest}"
 }
@@ -193,6 +227,7 @@ create_gguf_placeholders() {
   [ -e "${MODELS_DIR}/text_encoders/placeholder.gguf" ] || : > "${MODELS_DIR}/text_encoders/placeholder.gguf"
 }
 
+normalize_model_defaults
 create_gguf_placeholders
 
 reuse_existing \

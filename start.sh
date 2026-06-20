@@ -19,14 +19,37 @@ if [ -x /start.sh ]; then
   /start.sh &
 fi
 
-mkdir -p "${COMFYUI_DIR}"
-rsync -a \
-  --exclude models \
-  --exclude input \
-  --exclude output \
-  --exclude temp \
-  --exclude user \
-  /opt/ComfyUI/ "${COMFYUI_DIR}/"
+sync_comfyui_app() {
+  local path
+  local -a replace_paths=(
+    api_server
+    assets
+    comfy
+    comfy_api
+    comfy_extras
+    custom_nodes
+    script_examples
+    tests
+    web
+  )
+
+  mkdir -p "${COMFYUI_DIR}"
+
+  for path in "${replace_paths[@]}"; do
+    rm -rf "${COMFYUI_DIR:?}/${path}"
+  done
+
+  rsync -a --delete \
+    --exclude models \
+    --exclude input \
+    --exclude output \
+    --exclude temp \
+    --exclude user \
+    /opt/ComfyUI/ "${COMFYUI_DIR}/"
+}
+
+echo "Syncing ComfyUI application files from image..."
+sync_comfyui_app
 
 mkdir -p "${COMFYUI_DIR}/input"
 if [ ! -s "${COMFYUI_DIR}/input/placeholder.mp4" ]; then

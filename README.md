@@ -4,7 +4,7 @@ This folder packages the provided ComfyUI workflow as a RunPod Pod template.
 
 ## What is included
 
-- ComfyUI installed under `/opt/ComfyUI` and copied to `/workspace/ComfyUI` on first start.
+- ComfyUI installed under `/opt/ComfyUI` and synced to `/workspace/ComfyUI` on each start.
 - Custom nodes required by the workflow:
   - ComfyUI-VideoHelperSuite
   - rgthree-comfy
@@ -60,6 +60,7 @@ ComfyUI runs on HTTP port `8188`.
 The Docker base image is pinned to CUDA 12.4.1 to avoid RunPod hosts with older NVIDIA drivers failing before the container starts.
 The Transformers package is pinned to `4.56.2` because newer releases import continuous-batching modules that require newer Torch APIs than the CUDA 12.4 base provides.
 ComfyUI starts with `--enable-cors-header` so RunPod's proxy does not trigger host/origin 403 responses.
+Startup refreshes the ComfyUI application files from the image while preserving `/workspace/ComfyUI/models`, `input`, `output`, `temp`, and `user`. This repairs stale or partial ComfyUI code left on a persistent RunPod volume.
 Model downloads run in the background by default, so ComfyUI can become reachable before the large UNet and text encoder finish downloading.
 The startup script creates tiny placeholder media and image files so inactive video, audio, watermark, and reference-image branches do not fail validation before you replace them.
 
@@ -70,6 +71,7 @@ Downloads run in parallel by default. Tune `MAX_PARALLEL_DOWNLOADS`, `ARIA2_CONN
 Set `DOWNLOAD_MODELS_BACKGROUND=false` only when you want the container to block ComfyUI startup until every model has finished downloading.
 
 The V39 workflow selects `LTX2/DaSiWa-LTX23-GoldenLace-v3_fp8.safetensors` as the main UNet. The template downloads Golden Lace v3 FP8 from Civitai by default and saves it with that workflow filename.
+If an older RunPod template still passes the legacy Solstice Civitai model URL, the downloader automatically switches it to the V39 Golden Lace v3 defaults.
 The main transformer is stored in `models/diffusion_models` and symlinked into `models/unet` for compatibility with old and new ComfyUI loaders.
 The V39 VAE paths use `models/vae/LTX2/`; compatibility symlinks are created under `models/vae/LTX/` for the older V36 workflows.
 
