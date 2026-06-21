@@ -140,6 +140,51 @@ def patch_model_optimization(root: Path) -> None:
     path.write_text(text, encoding="utf-8")
 
 
+def patch_fp16_accumulation(root: Path) -> None:
+    """Make ModelPatchTorchSettings tolerate older PyTorch.
+
+    torch.backends.cuda.matmul.allow_fp16_accumulation only exists on PyTorch
+    2.7.1+. On the pinned 2.4 base it is absent, and KJNodes raises
+    RuntimeError("Failed to set fp16 accumulation, ...") even when the feature
+    is disabled, which aborts the whole prompt. Treat it as a warning and leave
+    torch settings unchanged so the workflow keeps running, matching the
+    SageAttention fallback philosophy.
+    """
+    path = root / "nodes" / "model_optimization_nodes.py"
+    text = path.read_text(encoding="utf-8")
+
+    if "leaving torch settings unchanged" in text:
+        return
+
+    replacement = (
+        'logging.warning("ModelPatchTorchSettings: fp16 accumulation requires '
+        'pytorch 2.7.1 or higher, which is unavailable; leaving torch settings '
+        'unchanged.")'
+    )
+    targets = (
+        'raise RuntimeError("Failed to set fp16 accumulation, this requires '
+        'pytorch 2.7.1 or higher")',
+        'raise RuntimeError("Failed to set fp16 accumulation, requires pytorch '
+        'version 2.7.1 or higher")',
+    )
+
+    replaced = False
+    for old in targets:
+        if old in text:
+            text = text.replace(old, replacement)
+            replaced = True
+
+    if not replaced:
+        # Upstream may have reworded/removed the raise; do not fail the build.
+        print(
+            "WARNING: fp16 accumulation raise target not found in "
+            "model_optimization_nodes.py; skipping fp16 fallback patch."
+        )
+        return
+
+    path.write_text(text, encoding="utf-8")
+
+
 def patch_ltxv(root: Path) -> None:
     path = root / "nodes" / "ltxv_nodes.py"
     text = path.read_text(encoding="utf-8")
@@ -186,6 +231,7 @@ def main() -> None:
         raise SystemExit("Usage: patch_kjnodes_sage_fallback.py /path/to/ComfyUI-KJNodes")
     root = Path(sys.argv[1])
     patch_model_optimization(root)
+    patch_fp16_accumulation(root)
     patch_ltxv(root)
 
 
