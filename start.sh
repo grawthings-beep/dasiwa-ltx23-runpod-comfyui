@@ -4,9 +4,16 @@ set -Eeuo pipefail
 : "${COMFYUI_DIR:=/workspace/ComfyUI}"
 : "${COMFYUI_HOST:=0.0.0.0}"
 : "${COMFYUI_PORT:=8188}"
-: "${CLI_ARGS:=--listen ${COMFYUI_HOST} --port ${COMFYUI_PORT} --preview-method auto --enable-cors-header}"
+: "${COMFYUI_PREVIEW_METHOD:=auto}"
+: "${COMFYUI_RESERVE_VRAM:=2}"
 : "${DOWNLOAD_MODELS:=true}"
 : "${DOWNLOAD_MODELS_BACKGROUND:=true}"
+
+DEFAULT_CLI_ARGS="--listen ${COMFYUI_HOST} --port ${COMFYUI_PORT} --preview-method ${COMFYUI_PREVIEW_METHOD} --enable-cors-header"
+if [ -n "${COMFYUI_RESERVE_VRAM}" ]; then
+  DEFAULT_CLI_ARGS="${DEFAULT_CLI_ARGS} --reserve-vram ${COMFYUI_RESERVE_VRAM}"
+fi
+: "${CLI_ARGS:=${DEFAULT_CLI_ARGS}}"
 
 is_truthy() {
   case "${1,,}" in

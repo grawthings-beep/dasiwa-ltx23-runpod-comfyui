@@ -1,12 +1,13 @@
 {
   "name": "dasiwa-ltx23-omniforge-comfyui",
-  "imageName": "ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.0",
+  "imageName": "ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.1",
   "category": "NVIDIA",
   "containerDiskInGb": 80,
   "dockerEntrypoint": [],
   "dockerStartCmd": [],
   "env": {
     "COMFYUI_PORT": "8188",
+    "COMFYUI_RESERVE_VRAM": "2",
     "DOWNLOAD_MODELS": "true",
     "DOWNLOAD_MODELS_BACKGROUND": "true",
     "DOWNLOAD_DEFAULT_UNET": "false",
