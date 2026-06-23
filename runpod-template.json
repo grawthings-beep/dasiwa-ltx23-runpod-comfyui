@@ -1,6 +1,6 @@
 {
   "name": "dasiwa-ltx23-omniforge-comfyui",
-  "imageName": "ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.1",
+  "imageName": "ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.2",
   "category": "NVIDIA",
   "containerDiskInGb": 80,
   "dockerEntrypoint": [],
@@ -25,9 +25,7 @@
   "isPublic": false,
   "isServerless": false,
   "ports": [
-    "8188/http",
-    "8888/http",
-    "22/tcp"
+    "8188/http"
   ],
   "readme": "ComfyUI template for DaSiWa LTX 2.3 OmniForge. Open port 8188 for ComfyUI. Models are downloaded to /workspace/ComfyUI/models on first start.",
   "volumeInGb": 160,

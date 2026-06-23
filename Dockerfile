@@ -1,4 +1,4 @@
-ARG BASE_IMAGE=runpod/pytorch:1.0.7-cu1290-torch280-ubuntu2204
+ARG BASE_IMAGE=pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime
 FROM ${BASE_IMAGE}
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
@@ -93,6 +93,6 @@ COPY workflows /opt/workflows
 
 RUN chmod +x /start-comfy.sh /download_models.sh
 
-EXPOSE 8188 8888
+EXPOSE 8188
 
 CMD ["/start-comfy.sh"]

@@ -31,35 +31,34 @@ grawthings-beep/dasiwa-ltx23-runpod-comfyui
 Recommended container image:
 
 ```text
-ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.1
+ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.2
 ```
 
 ```bash
-docker build --platform linux/amd64 -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.1 .
-docker push ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.1
+docker build --platform linux/amd64 -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.2 .
+docker push ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.2
 ```
 
 SageAttention is installed by default for the workflow's active KJNodes SageAttention path. If the install is unavailable on a future base image, the image still builds and KJNodes falls back to standard attention instead of crashing.
 
 ```bash
-docker build --platform linux/amd64 --build-arg INSTALL_SAGEATTENTION=false -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.1-no-sage .
+docker build --platform linux/amd64 --build-arg INSTALL_SAGEATTENTION=false -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.2-no-sage .
 ```
 
 ## RunPod template settings
 
 Use `runpod-template.json` as the API payload or fill the RunPod UI with these values:
 
-- Container image: `ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.1`
+- Container image: `ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.2`
 - Container disk: `80 GB`
 - Volume disk: `160 GB`
 - Volume mount path: `/workspace`
-- HTTP ports: `8188`, `8888`
-- TCP ports: `22`
+- HTTP ports: `8188`
 
 ComfyUI runs on HTTP port `8188`.
 
-The Docker base image uses RunPod's PyTorch 2.8 / CUDA 12.9 image so current ComfyUI can use its dynamic VRAM model loader instead of falling back to the older legacy loader.
-Select a RunPod host whose NVIDIA driver supports CUDA 12.9, or rebuild with a lower `BASE_IMAGE` only if you are intentionally targeting older hosts.
+The Docker base image uses the official PyTorch 2.8 / CUDA 12.8 runtime image so current ComfyUI can use its dynamic VRAM model loader without pulling RunPod's much larger development image on first pod start. This lightweight image starts ComfyUI directly on port `8188`; it does not include the RunPod base image's Jupyter/SSH helper stack.
+Select a RunPod host whose NVIDIA driver supports CUDA 12.8, or rebuild with a lower `BASE_IMAGE` only if you are intentionally targeting older hosts.
 The Transformers package is pinned to `4.56.2` because newer releases import continuous-batching modules that require newer Torch APIs than this workflow stack currently uses.
 ComfyUI starts with `--enable-cors-header` so RunPod's proxy does not trigger host/origin 403 responses.
 ComfyUI also starts with `--reserve-vram 2` by default via `COMFYUI_RESERVE_VRAM=2`, leaving headroom for VAE/post-processing and avoiding edge-of-card allocations on 48 GB GPUs.
