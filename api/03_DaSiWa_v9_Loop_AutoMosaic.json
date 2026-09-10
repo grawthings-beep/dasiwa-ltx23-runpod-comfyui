@@ -1,0 +1,252 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "upload-your-image.png"
+    },
+    "_meta": {
+      "title": "01 · Upload image"
+    }
+  },
+  "2": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "DasiwaWAN22I2V14BLightspeed_synthseductionHighV9.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "HIGH · SynthSeduction v9"
+    }
+  },
+  "3": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "DasiwaWAN22I2V14BLightspeed_synthseductionLowV9.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "LOW · SynthSeduction v9"
+    }
+  },
+  "4": {
+    "class_type": "ModelSamplingSD3",
+    "inputs": {
+      "shift": 5.0,
+      "model": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "HIGH · Shift 5"
+    }
+  },
+  "5": {
+    "class_type": "ModelSamplingSD3",
+    "inputs": {
+      "shift": 5.0,
+      "model": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "LOW · Shift 5"
+    }
+  },
+  "6": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "type": "wan",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "UMT5 · GPU auto/offload"
+    }
+  },
+  "7": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Locked-off camera. A steady gentle breeze moves the fabric and hair in smooth continuous waves. The subject stays in place with a calm, unchanged expression and closed mouth. Natural motion, consistent lighting, stable composition. The motion completes one gentle cycle and smoothly returns to its starting pose.",
+      "clip": [
+        "6",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "02 · Describe the motion"
+    }
+  },
+  "8": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "7",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "CFG 1 · no negative evaluation"
+    }
+  },
+  "9": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "wan_2.1_vae.safetensors"
+    },
+    "_meta": {
+      "title": "Wan 2.1 VAE · correct for A14B"
+    }
+  },
+  "10": {
+    "class_type": "WanFirstLastFrameToVideo",
+    "inputs": {
+      "width": 720,
+      "height": 960,
+      "length": 81,
+      "batch_size": 1,
+      "positive": [
+        "7",
+        0
+      ],
+      "negative": [
+        "8",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ],
+      "start_image": [
+        "1",
+        0
+      ],
+      "end_image": [
+        "1",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "03 · Width / Height / Frames · batch = 1"
+    }
+  },
+  "11": {
+    "class_type": "KSamplerAdvanced",
+    "inputs": {
+      "add_noise": "enable",
+      "noise_seed": 123456789,
+      "steps": 4,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "start_at_step": 0,
+      "end_at_step": 2,
+      "return_with_leftover_noise": "enable",
+      "model": [
+        "4",
+        0
+      ],
+      "positive": [
+        "10",
+        0
+      ],
+      "negative": [
+        "10",
+        1
+      ],
+      "latent_image": [
+        "10",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "04 · HIGH · first 2 steps"
+    }
+  },
+  "12": {
+    "class_type": "KSamplerAdvanced",
+    "inputs": {
+      "add_noise": "disable",
+      "noise_seed": 123456789,
+      "steps": 4,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "start_at_step": 2,
+      "end_at_step": 4,
+      "return_with_leftover_noise": "disable",
+      "model": [
+        "5",
+        0
+      ],
+      "positive": [
+        "10",
+        0
+      ],
+      "negative": [
+        "10",
+        1
+      ],
+      "latent_image": [
+        "11",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "05 · LOW · last 2 steps"
+    }
+  },
+  "13": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "12",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "06 · Decode · native OOM fallback"
+    }
+  },
+  "14": {
+    "class_type": "DaSiWaSaveMP4",
+    "inputs": {
+      "fps": 16.0,
+      "filename_prefix": "DaSiWa/loop_mosaic",
+      "crf": 18,
+      "trim_last_frame": false,
+      "images": [
+        "16",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "07 · Save MP4 · 80 frames = 5 seconds"
+    }
+  },
+  "16": {
+    "class_type": "DaSiWaAutoMosaic",
+    "inputs": {
+      "images": [
+        "13",
+        0
+      ],
+      "coverage_preset": "JUST",
+      "confidence": 0.3,
+      "iou_threshold": 0.5,
+      "block_size": 0,
+      "max_gap_frames": 3,
+      "target_classes": "pussy,penis,testicles",
+      "device": "auto",
+      "trim_last_frame": true
+    },
+    "_meta": {
+      "title": "07 · Auto Mosaic · JUST · output only"
+    }
+  }
+}

@@ -132,8 +132,7 @@ class WorkflowTests(unittest.TestCase):
         self.assertEqual(api["14"]["inputs"]["images"], ["13", 0])
 
     def test_ui_links_and_nonoverlapping_cards(self):
-        for loop in (False, True):
-            ui, api = workflows.build(loop)
+        for ui, api in (workflows.build(False), workflows.build(True), workflows.build_mosaic()):
             by_id = {n["id"]: n for n in ui["nodes"]}
             for number, origin, slot, target, input_slot, typ in ui["links"]:
                 self.assertIn(number, by_id[origin]["outputs"][slot]["links"])

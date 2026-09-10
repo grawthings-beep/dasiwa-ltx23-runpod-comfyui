@@ -6,6 +6,35 @@ import av
 import torch
 import folder_paths
 from comfy_api.latest import ComfyExtension, io, ui
+from .mosaic_nodes import WanAutoMosaicVideo, MODEL_FILENAME, DEFAULT_CLASSES
+
+
+class DaSiWaAutoMosaic(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(node_id="DaSiWaAutoMosaic", display_name="Loop Auto Mosaic · JUST", category="DaSiWa/video",
+            inputs=[io.Image.Input("images"),
+                    io.Combo.Input("coverage_preset", options=["JUST", "WIDE", "SAFE"], default="JUST"),
+                    io.Float.Input("confidence", default=0.30, min=0.05, max=0.95, step=0.01),
+                    io.Float.Input("iou_threshold", default=0.50, min=0.05, max=0.95, step=0.01),
+                    io.Int.Input("block_size", default=0, min=0, max=128, step=2),
+                    io.Int.Input("max_gap_frames", default=3, min=0, max=24),
+                    io.String.Input("target_classes", default=DEFAULT_CLASSES),
+                    io.Combo.Input("device", options=["auto", "cpu"], default="auto"),
+                    io.Boolean.Input("trim_last_frame", default=True,
+                                     tooltip="Remove repeated loop endpoint BEFORE circular mask gap filling. Disable trim in the MP4 saver.")],
+            outputs=[io.Image.Output(display_name="mosaicked_images")])
+
+    @classmethod
+    def execute(cls, images, coverage_preset, confidence, iou_threshold, block_size,
+                max_gap_frames, target_classes, device, trim_last_frame):
+        if images.ndim != 4 or len(images) < (2 if trim_last_frame else 1):
+            raise ValueError("Expected a nonempty video (at least 2 frames when trimming)")
+        if trim_last_frame:
+            images = images[:-1]
+        result = WanAutoMosaicVideo().apply(images, MODEL_FILENAME, coverage_preset,
+            confidence, iou_threshold, block_size, max_gap_frames, target_classes, device)
+        return io.NodeOutput(result[0])
 
 
 class DaSiWaSaveMP4(io.ComfyNode):
@@ -61,7 +90,7 @@ class DaSiWaSaveMP4(io.ComfyNode):
 
 class DaSiWaExtension(ComfyExtension):
     async def get_node_list(self):
-        return [DaSiWaSaveMP4]
+        return [DaSiWaSaveMP4, DaSiWaAutoMosaic]
 
 
 async def comfy_entrypoint():

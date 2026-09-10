@@ -34,12 +34,13 @@
 
 `MODEL_SOURCE=hf`/`civitai`で取得元を固定することも可能。後者でもUMT5/VAEはComfy-Org公式HFから取得します。重み自体はGitやGHCRへ再配布しません。
 
-## 使うworkflowは2本
+## 使うworkflowは3本
 
 ComfyUIのworkflow一覧 → `DaSiWa-WAN`。
 
 - `01_DaSiWa_v9_I2V`: 普通の画像→動画。
 - `02_DaSiWa_v9_Loop`: 同じ画像を開始/終了の条件に使うループ候補生成。終端1枚を落として80フレーム/16 fps = **5秒**。
+- `03_DaSiWa_v9_Loop_AutoMosaic`: 02と同じ生成設定＋完成フレームへの自動モザイク。元の01/02は変更なし。
 
 画像をアップロードし、「Describe the motion」を書き、「Width / Height / Frames」でサイズを設定してRun。
 初期値: **720×960 / 81フレーム / 16 fps / 4ステップ合計（High 2 + Low 2）/ CFG 1 / Euler + Simple / Shift 5**。
@@ -60,6 +61,7 @@ CFG 1ではnegativeは通常評価されません。`closed mouth, unchanged exp
 - **公式PyTorch CUDA 12.8 runtime**（ベースの圧縮サイズ4.43 GB）をdigest固定。devel、Jupyter、Manager、LTX/RTX/GGUFなど不要なノードパックなし。
 - ComfyUIと依存関係をビルド時に導入。起動時pip/git/コンパイル/ComfyUI全体コピーなし。`/opt/ComfyUI`から直接起動。
 - 必須4ファイルのみ、**36,047,005,223 bytes（36.05 GB / 33.57 GiB）**。High/Low/UMT5/VAEすべてrevision・サイズ・SHA256固定。
+- 自動モザイク用には別途 **18,846,815 bytes（約19 MB）** の検出モデルZIPを取得。SAM2などの大容量モデルは追加しません。初回展開後もZIPを検証元として保持します。
 - 大きい順に3ファイル並列、Xet高速モード。HTTP取得はaria2最大16分割、再開対応。
 - 作業先と完成先を同じファイルシステムに置き、検証後にrename。14 GBファイルをキャッシュからもう一度コピーしない。
 - 一度検証したファイルはサイズ・mtime・検証記録が変わらなければ再ハッシュ不要。新規Podは毎回取得する前提。
@@ -76,10 +78,29 @@ CFG 1ではnegativeは通常評価されません。`closed mouth, unchanged exp
 - 4ステップはこの蒸留モデルの推奨値。非蒸留モデルのステップを勝手に削ったものではありません。
 - PyTorch標準SDPA。SageAttention/TeaCache/FP8-fast/追加蒸留LoRA/`--fast`/torch.compileは既定で使いません。近似計算や初回コンパイルコストを避けます。
 - UMT5をCPU固定しません。ComfyUIの自動GPU管理とoffloadを使い、毎回キャッシュを捨てる処理もありません。
-- 生成後の追加upscale/RIFE/音声生成/モザイクはこのrepoの既定経路には入れません。保存はMP4、H.264 CRF18・veryfast。保存前の生成解像度/フレーム数を下げません。
+- 01/02に追加upscale/RIFE/音声生成/モザイクは入りません。03のみ生成後にモザイク。保存はMP4、H.264 CRF18・veryfast。保存前の生成解像度/フレーム数を下げません。
 - VAEは通常decode。固定ComfyUIのOOM時tiled fallbackに任せます。タイル化は時間/画質特性が変わり得ます。
 
 **LTX→WANで画質が同一になる保証はありません。** ここでの方針は指定WANモデルに対して追加の画質低下策を入れないことです。GPU未接続のCIでは実生成の品質・速度は評価できません。
+
+## 自動モザイク（03専用）
+
+同所有者のwan-animate-runpodの `WanAutoMosaicVideo` を移植。**入力画像には処理せず、VAE decode後の全フレームを検出→輪郭マスク→モザイク→MP4保存**します。追加LoRAは不要。
+
+- 既定は `JUST` / confidence `0.30` / IoU `0.50` / block_size `0`（短辺に応じ自動、720なら14px）/ max_gap_frames `3`。
+- 対象は以前と同じ `pussy,penis,testicles`。`anus`、`nipples`、断面・透視クラスは既定対象外。輪郭の少量拡張があるので、隣接領域に重なる可能性までは排除しません。
+- JUSTは検出輪郭を少量広げる方式。WIDE/SAFEは余裕のある楕円も追加。画面固定のモザイク格子により、マスク移動でタイルが泳ぐのを抑えます。
+- ループ終端の重複1枚を**先に除き**、80フレーム間で最大3フレームの短い検出抜けを継ぎ目も含め補間。Save MP4側の `trim_last_frame` はOFFのままにしてください（二重削除防止）。
+- `device=auto` は生成モデルをoffloadして空きVRAMが2 GiB以上なら検出にGPUを利用。OOM時は当該フレームからCPUへ切り替え。検出を間引きません。次回生成のモデル再ロードと検出処理の時間は増え得ます。`cpu` はGPUを使わず、検出は遅くなる場合があります。
+- 処理失敗は生成エラーとして停止。未処理MP4へのフォールバック保存なし。ただし**検出ゼロは処理エラーではなく、その部分は未処理のまま**です。検出漏れ・誤検出があるので出力全体の目視確認は必要です。正確な範囲や完全な隠蔽は保証しません。
+
+検出器は [作者のAnime NSFW Detection v5.0](https://civitai.com/models/1313556?modelVersionId=2266294)（YOLO11s-seg）。作者の用途はアニメ画像で、実写・白黒漫画は適用範囲外。元ファイルはGit/GHCRへ再配布しません。
+
+**既存WAN環境変数のままで有効**。`DOWNLOAD_MOSAIC_MODELS=1` が既定値です。Civitaiの取得権限がある既存の `CIVITAI_API_TOKEN`（または `CIVITAI_TOKEN`）が必要。配布ZIPのサイズ・SHA256・ZIP CRCを検証し、期待したPTファイルだけを安全に展開します。モデルは `/workspace/wan22/models/auto_mosaic/`、ComfyUIに同じパスを登録。読み込み時もハッシュ検証します。
+
+起動時に検出モデルの実読み込み・クラス名・小さなCPU推論を検査してからWANの大容量取得へ進みます。初回は検出器の取得・検査分の時間が追加されますが、pip/git/追加依存のインストールは起動時に実行しません。ultralyticsとOpenCVはイメージに同梱。
+
+01/02しか使わない場合は `DOWNLOAD_MOSAIC_MODELS=0` で検出器の取得・起動検査を省略可能。その場合、モデル未取得の03は実行できません。`DOWNLOAD_MODELS=0` は検出器も含めオフライン検証のみ。
 
 ## GPUエラー
 
@@ -95,7 +116,7 @@ python -m unittest discover -s tests -v
 docker build -t dasiwa-wan:test .
 ```
 
-Docker buildは実aria2によるHTTP取得・配置の回帰試験に加えて、実際のComfyUIをCPUで起動して両workflowのノード・入力・接続型を照合し、4枚のテスト画像→MP4保存→3枚のdecodeまで確認します。WAN重みのロード・GPU推論は未検証であり、CI成功はその代わりではありません。
+Docker buildは実aria2によるHTTP取得・配置の回帰試験に加えて、実際のComfyUIをCPUで起動して3本のworkflowのノード・入力・接続型を照合し、4枚のテスト画像→モザイクノード（終端除去）→MP4保存→3枚のdecodeまで確認します。CIにはCivitai認証情報がないため、**YOLO11s-segのランダム重みで保存・読み込み・CPU推論を試験し、配布検出モデルの精度は試験しません**。合成マスクで輪郭外不変・全フレーム処理・疑似GPU OOM→CPU再試行・エラー時停止を別途検証。公式検出重みの実読み込み検査はPod起動時に実行します。WAN重みのロード・GPU推論・生成品質・実速度はCI未検証です。
 
 コード/テンプレート更新は依存関係レイヤーを再インストールせずにビルド可能。新しい公開タグは`wan22-v9-cu128`と`wan22-v9-cu128-sha-<full commit>`。既存のLTXタグは上書きしません。
 旧LTXデータを`/workspace/ComfyUI`から削除する処理はありません。新WANは`/workspace/wan22`を利用し、編集済みの配布workflowはconfig内に退避してから更新します。

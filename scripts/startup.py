@@ -1,5 +1,6 @@
 """Small PID-1 supervisor: status -> real CUDA -> exact weights -> ComfyUI."""
 import json
+import importlib.util
 import os
 from pathlib import Path
 import shlex
@@ -12,7 +13,7 @@ import uuid
 
 from bootstrap_status import write_status
 from gpu_preflight import sanitize
-from models import atomic_json, load_manifest, provision, safe_path, valid
+from models import atomic_json, load_manifest, provision, safe_path, valid, resolve_source, aria_download
 
 BUNDLE = Path(__file__).resolve().parent.parent
 
@@ -39,10 +40,10 @@ def comfy_command(root, config):
 
 
 def prepare(root, config):
-    for folder in ("input", "output", "temp", "user/default/workflows/DaSiWa-WAN", "models/diffusion_models", "models/text_encoders", "models/vae", "models/loras"):
+    for folder in ("input", "output", "temp", "user/default/workflows/DaSiWa-WAN", "models/diffusion_models", "models/text_encoders", "models/vae", "models/loras", "models/auto_mosaic"):
         (root / folder).mkdir(parents=True, exist_ok=True)
     config.mkdir(parents=True, exist_ok=True)
-    paths = {"wan_workspace": {"base_path": str(root), **{name: "models/" + name for name in ("diffusion_models", "text_encoders", "vae", "loras")}}}
+    paths = {"wan_workspace": {"base_path": str(root), **{name: "models/" + name for name in ("diffusion_models", "text_encoders", "vae", "loras", "auto_mosaic")}}}
     # JSON is valid YAML, and quotes special characters in mounted paths safely.
     atomic_json(config / "extra-model-paths.yaml", paths)
     destination = root / "user/default/workflows/DaSiWa-WAN"
@@ -68,6 +69,20 @@ def stop(child):
         except subprocess.TimeoutExpired:
             child.kill()
             child.wait()
+
+
+def prepare_mosaic(root, download):
+    app = Path(os.environ.get("COMFYUI_APP", "/opt/ComfyUI"))
+    module_path = app / "custom_nodes/DaSiWa-WAN/mosaic_model.py"
+    if not module_path.exists():
+        module_path = BUNDLE / "custom_nodes/DaSiWa-WAN/mosaic_model.py"
+    spec = importlib.util.spec_from_file_location("mosaic_model_installer", module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    def fetch(asset, stage):
+        plan = resolve_source(asset, "civitai")
+        aria_download(plan["url"], stage, min(16, max(1, int(os.environ.get("ARIA2_CONNECTIONS", "16")))))
+    return module.ensure_model(root / "models", fetch if download else None)
 
 
 def main():
@@ -100,6 +115,8 @@ def main():
         write_status(status, {"boot_id": boot_id, "state": "initializing", "phase": "starting", "message": "WAN 2.2を準備しています"}, reset=True)
         server = subprocess.Popen([sys.executable, str(BUNDLE / "scripts/bootstrap_status.py"), "serve", "--file", str(status), "--diagnostics-file", str(diagnostic), "--host", os.environ.get("LISTEN", "0.0.0.0"), "--port", os.environ.get("PORT", os.environ.get("COMFYUI_PORT", "8188"))])
         prepare(root, config)
+        os.environ.setdefault("YOLO_CONFIG_DIR", str(config / "ultralytics"))
+        os.environ["YOLO_AUTOINSTALL"] = "false"
         progress("cuda-preflight", "モデル取得前にCUDA実演算を確認しています")
         command = [sys.executable, str(BUNDLE / "scripts/gpu_preflight.py"), "--python", sys.executable, "--diagnostics-file", str(diagnostic), "--status-file", str(status), "--boot-id", boot_id]
         if not truth(os.environ.get("CUDA_PREFLIGHT", "1")):
@@ -117,6 +134,13 @@ def main():
             raise RuntimeError("Startup status server could not bind port 8188")
         manifest = BUNDLE / "config/models.json"
         results = []
+        if truth(os.environ.get("DOWNLOAD_MOSAIC_MODELS", "1")):
+            progress("mosaic-model", "自動モザイク検出モデル（約19 MB）を取得・検証しています")
+            detector = prepare_mosaic(root, truth(os.environ.get("DOWNLOAD_MODELS", "1")))
+            # A small CPU forward catches incompatible PT/Ultralytics before a
+            # large WAN download or user generation. No GPU memory is reserved.
+            subprocess.run([sys.executable, str(BUNDLE / "scripts/mosaic_smoke.py"),
+                            "--validate-detector", str(detector)], check=True, timeout=90)
         if truth(os.environ.get("DOWNLOAD_MODELS", "1")):
             sys.path.insert(0, str(BUNDLE / "downloader-libs"))
             os.environ.setdefault("HF_HOME", str(root / ".cache/huggingface"))

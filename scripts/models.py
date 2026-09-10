@@ -146,9 +146,9 @@ class SafeRedirect(urllib.request.HTTPRedirectHandler):
 
 def resolve_source(asset, source="auto"):
     """Only official HF/Civitai. HEAD all assets before starting payload transfers."""
-    from huggingface_hub import get_hf_file_metadata, hf_hub_url
     hf_error = None
     if source != "civitai" or not asset.get("civitai_version"):
+        from huggingface_hub import get_hf_file_metadata, hf_hub_url
         try:
             meta = get_hf_file_metadata(hf_hub_url(asset["repo"], asset["file"], revision=asset["revision"]), token=token("HF_TOKEN") or False, timeout=20)
             if meta.size != asset["size"] or (meta.etag or "").strip('"') != asset["sha256"]:

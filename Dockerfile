@@ -5,8 +5,9 @@ ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CH
     PIP_NO_CACHE_DIR=1 PIP_CONSTRAINT=/opt/wan22/constraints.txt \
     EXPECTED_TORCH_VERSION=2.10.0+cu128 EXPECTED_TORCHVISION_VERSION=0.25.0+cu128 \
     EXPECTED_TORCHAUDIO_VERSION=2.10.0+cu128 EXPECTED_TORCH_CUDA=12.8 \
-    HF_XET_HIGH_PERFORMANCE=1 HF_XET_CHUNK_CACHE_SIZE_BYTES=0 HF_HUB_DISABLE_TELEMETRY=1
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates aria2 libglib2.0-0 python3-venv \
+    HF_XET_HIGH_PERFORMANCE=1 HF_XET_CHUNK_CACHE_SIZE_BYTES=0 HF_HUB_DISABLE_TELEMETRY=1 \
+    YOLO_AUTOINSTALL=false YOLO_CONFIG_DIR=/tmp/ultralytics
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates aria2 libglib2.0-0 libgl1 python3-venv \
     && rm -rf /var/lib/apt/lists/*
 RUN python -m venv --system-site-packages /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
@@ -22,6 +23,8 @@ RUN git init /opt/ComfyUI \
 # the new Hub inside the downloader process, never inside ComfyUI.
 RUN env -u PIP_CONSTRAINT python -m pip install --target /opt/wan22/downloader-libs \
     huggingface_hub==1.24.0 hf-xet==1.5.2
+# Install the detector runtime at build time, constrained to the existing Torch stack.
+RUN python -m pip install ultralytics==8.4.104 opencv-python==4.12.0.88
 COPY custom_nodes/DaSiWa-WAN /opt/ComfyUI/custom_nodes/DaSiWa-WAN
 COPY scripts /opt/wan22/scripts
 COPY config/models.json /opt/wan22/config/models.json
@@ -30,6 +33,7 @@ COPY api /opt/wan22/api
 COPY tests /opt/wan22/tests
 RUN python /opt/wan22/scripts/gpu_preflight.py --stack-only \
     && python -m unittest discover -s /opt/wan22/tests -p test_aria_download.py -v \
+    && python /opt/wan22/scripts/mosaic_smoke.py \
     && python /opt/wan22/scripts/container_smoke.py
 ARG BUNDLE_REVISION=unknown
 ENV BUNDLE_REVISION=${BUNDLE_REVISION}

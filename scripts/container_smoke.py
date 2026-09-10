@@ -18,6 +18,8 @@ def main():
             port = listener.getsockname()[1]
         os.environ.update(PORT=str(port), LISTEN="127.0.0.1", COMFYUI_ARGS="--cpu")
         prepare(root, root / "config")
+        from mosaic_smoke import create_fixture
+        create_fixture(root / "models/auto_mosaic")
         child = subprocess.Popen(comfy_command(root, root / "config"), cwd=os.environ.get("COMFYUI_APP", "/opt/ComfyUI"))
 
         def api(path, data=None):
@@ -52,11 +54,12 @@ def main():
                 print(f"SCHEMA OK: {path.name}", flush=True)
             prompt = {
                 "1": {"class_type": "EmptyImage", "inputs": {"width": 64, "height": 64, "batch_size": 4, "color": 6724044}},
-                "2": {"class_type": "DaSiWaSaveMP4", "inputs": {"images": ["1", 0], "fps": 16.0, "filename_prefix": "smoke/test", "crf": 18, "trim_last_frame": True}},
+                "3": {"class_type": "DaSiWaAutoMosaic", "inputs": {"images": ["1", 0], "coverage_preset": "JUST", "confidence": .95, "iou_threshold": .5, "block_size": 0, "max_gap_frames": 3, "target_classes": "pussy,penis,testicles", "device": "cpu", "trim_last_frame": True}},
+                "2": {"class_type": "DaSiWaSaveMP4", "inputs": {"images": ["3", 0], "fps": 16.0, "filename_prefix": "smoke/test", "crf": 18, "trim_last_frame": False}},
             }
             result = api("/prompt", {"prompt": prompt, "client_id": "build-smoke"})
             prompt_id = result["prompt_id"]
-            for _ in range(30):
+            for _ in range(90):
                 history = api("/history/" + prompt_id)
                 if prompt_id in history:
                     assert history[prompt_id]["status"]["status_str"] == "success", history
@@ -70,7 +73,7 @@ def main():
             with av.open(files[0]) as container:
                 frames = list(container.decode(video=0))
                 assert len(frames) == 3 and frames[0].width == 64
-            print("SMOKE PASSED: real CPU startup, both workflow schemas, MP4 encode/decode + loop trim. GPU inference NOT RUN.", flush=True)
+            print("SMOKE PASSED: real CPU startup, all workflow schemas, random-weight detector node -> MP4 encode/decode + single loop trim. Official detector weights and WAN GPU inference NOT RUN.", flush=True)
         finally:
             stop(child)
 

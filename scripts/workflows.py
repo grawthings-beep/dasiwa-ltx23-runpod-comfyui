@@ -69,9 +69,41 @@ def build(loop=False):
     return ui, graph
 
 
+def build_mosaic():
+    # Derive a third workflow without changing the two established workflows.
+    ui, graph = build(True)
+    ui["id"] = str(uuid.uuid5(uuid.NAMESPACE_URL, "grawthings/dasiwa/v9/loop-mosaic"))
+    settings = {"coverage_preset": "JUST", "confidence": 0.30, "iou_threshold": 0.50,
+                "block_size": 0, "max_gap_frames": 3, "target_classes": "pussy,penis,testicles",
+                "device": "auto", "trim_last_frame": True}
+    graph["16"] = {"class_type": "DaSiWaAutoMosaic", "inputs": {"images": ["13", 0], **settings},
+                   "_meta": {"title": "07 · Auto Mosaic · JUST · output only"}}
+    graph["14"]["inputs"].update(images=["16", 0], trim_last_frame=False, filename_prefix="DaSiWa/loop_mosaic")
+    old_link = next(link for link in ui["links"] if link[1] == 13 and link[3] == 14)
+    old_link[3] = 16
+    new_id = ui["last_link_id"] + 1
+    ui["links"].append([new_id, 16, 0, 14, 0, "IMAGE"])
+    ui["nodes"].append({"id": 16, "type": "DaSiWaAutoMosaic", "title": "07 · Auto Mosaic · JUST · output only",
+        "pos": [1560, 1300], "size": [440, 350], "flags": {}, "order": 13, "mode": 0,
+        "inputs": [{"name": "images", "type": "IMAGE", "link": old_link[0]}],
+        "outputs": [{"name": "mosaicked_images", "type": "IMAGE", "links": [new_id]}],
+        "properties": {"Node name for S&R": "DaSiWaAutoMosaic"}, "widgets_values": list(settings.values())})
+    saver = next(node for node in ui["nodes"] if node["id"] == 14)
+    saver.update(pos=[2060, 1300], title="08 · Save mosaicked MP4 · 80 frames / 5s", order=14)
+    saver["inputs"][0]["link"] = new_id
+    saver["widgets_values"] = [16.0, "DaSiWa/loop_mosaic", 18, False]
+    note = next(node for node in ui["nodes"] if node["id"] == 15)
+    note["size"] = [930, 440]
+    note["widgets_values"][0] += "\n\nAUTO MOSAIC: generated frames only; source image is untouched.\nThe mosaic node removes the repeated endpoint BEFORE circular gap filling.\nDo NOT enable trim_last_frame again in Save MP4.\nJUST contours / confidence 0.30 / automatic tile size / max gap 3.\nDefault targets exclude anus and nipples. Review the entire output: detection is not guaranteed.\nErrors stop the graph; no unprocessed MP4 fallback. Anime detector, not for realistic footage."
+    ui.update(last_node_id=16, last_link_id=new_id)
+    return ui, graph
+
+
 def generate(check=False):
-    for loop, name in [(False, "01_DaSiWa_v9_I2V"), (True, "02_DaSiWa_v9_Loop")]:
-        for folder, data in zip(("workflows", "api"), build(loop)):
+    variants = [("01_DaSiWa_v9_I2V", build(False)), ("02_DaSiWa_v9_Loop", build(True)),
+                ("03_DaSiWa_v9_Loop_AutoMosaic", build_mosaic())]
+    for name, pair in variants:
+        for folder, data in zip(("workflows", "api"), pair):
             path = ROOT / folder / (name + ".json")
             content = json.dumps(data, ensure_ascii=False, indent=2) + "\n"
             if check:
