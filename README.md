@@ -1,134 +1,103 @@
-# DaSiWa LTX 2.3 OmniForge RunPod Template
+# DaSiWa WAN 2.2 · SynthSeduction v9 · RunPod
 
-This folder packages the provided ComfyUI workflow as a RunPod Pod template.
+このrepoの **mainはWAN 2.2専用**。repo名に`ltx23`は残っていますが、LTX用コード・workflowは`archive/ltx23/`に退避し、コンテナには含めません。旧イメージの`0.2.2`/`latest`タグは上書きしません。
 
-## What is included
+## RunPod設定
 
-- ComfyUI installed under `/opt/ComfyUI` and synced to `/workspace/ComfyUI` on each start.
-- Custom nodes required by the workflow:
-  - ComfyUI-VideoHelperSuite
-  - rgthree-comfy
-  - comfyui-WhiteRabbit
-  - ComfyUI-KJNodes
-  - ComfyUI-DaSiWa-Nodes
-  - ComfyUI-LTXVideo
-  - WhatDreamsCost-ComfyUI
-  - ComfyUI-GGUF
-  - Nvidia_RTX_Nodes_ComfyUI
-  - ComfyUI-Manager
-  - dasiwa-compat (bundled here: registers a passthrough `ColorTransfer` so the workflow has no missing node types)
-- The original V36 workflow set and the provided V39 workflow in `workflows/`.
-- First-start model downloader for the public Hugging Face assets and the Civitai Golden Lace v3 UNet used by V39.
+| 項目 | 値 |
+|---|---|
+| Image | `ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:wan22-v9-cu128`（検証後はSHAタグ固定推奨） |
+| GPU | RTX 4090 / 5090を想定。GPU名での拒否なし。実機生成ベンチマークは未実施 |
+| CPU RAM | 64 GB以上を目安、余裕があれば96 GB以上。VRAMだけで選ばない |
+| Container disk | 30 GB |
+| Volume disk | 80 GB以上（Podローカル。**Network Volumeは不要**） |
+| Volume mount | `/workspace` |
+| HTTP port | `8188` |
+| TCP port | 不要 |
+| Container start command / entrypoint | 空欄。イメージの既定を使う |
 
-## Build and push
+環境変数の全項目は [runpod.env.example](runpod.env.example)。RunPod Secretsの鍵アイコンからHF/Civitaiトークンを紐付けます。**古いLTXテンプレートの環境変数は引き継がず、このファイルを使ってください。**
 
-Recommended GitHub repository:
+### ダウンロード元・アクセス権
 
-```text
-grawthings-beep/dasiwa-ltx23-runpod-comfyui
-```
+1. [作者公式Hugging Face](https://huggingface.co/darksidewalker/DaSiWa-WAN2.2-I2V)で、HF_TOKENと同じアカウントから利用条件を確認・同意してください。これはユーザー本人が行う操作です。
+2. `MODEL_SOURCE=auto`は公式HFのアクセス・サイズ・SHA256を確認し、利用可能ならXet。利用不可なら、Civitaiトークンを使って**同じv9ファイル**を取得します。
+3. どちらにもアクセスできない場合、36 GBを取り始める前に明確なエラーで止まります。別checkpointやGGUFへのすり替えはありません。
 
-Recommended container image:
+`MODEL_SOURCE=hf`/`civitai`で取得元を固定することも可能。後者でもUMT5/VAEはComfy-Org公式HFから取得します。重み自体はGitやGHCRへ再配布しません。
 
-```text
-ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.2
-```
+## 使うworkflowは2本
+
+ComfyUIのworkflow一覧 → `DaSiWa-WAN`。
+
+- `01_DaSiWa_v9_I2V`: 普通の画像→動画。
+- `02_DaSiWa_v9_Loop`: 同じ画像を開始/終了の条件に使うループ候補生成。終端1枚を落として80フレーム/16 fps = **5秒**。
+
+画像をアップロードし、「Describe the motion」を書き、「Width / Height / Frames」でサイズを設定してRun。
+初期値: **720×960 / 81フレーム / 16 fps / 4ステップ合計（High 2 + Low 2）/ CFG 1 / Euler + Simple / Shift 5**。
+seedは比較しやすいよう固定。変化を出すときはHIGH側の`noise_seed`を変えます。
+
+モデルには高速化蒸留が内蔵されています。**LightX2V・Lightningなどの高速化LoRAをさらに重ねないでください。** 追加の概念LoRAはこの最小構成には含めていません。LTX LoRAはWANと互換性がありません。
+
+### ループの限界
+
+入力画像を後処理で差し込む、逆再生で往復させる、クロスフェードする処理はありません。両端を画像条件で生成し、最後の重複フレームを除く方式です。
+**位置が近くても速度や表情の変化まで一致するとは限らず、完全シームレスは保証しません。** 固定カメラ・周期的な小さめの動き・開始姿勢へ戻るプロンプトが適しています。
+
+プロンプトは見た目の列挙より「何が、どちらへ、どれくらい、どう繰り返すか」を記述。例: `Locked-off camera. A steady breeze moves the fabric in continuous gentle waves. The subject remains in place. The motion completes one cycle and returns smoothly to the starting pose.`
+CFG 1ではnegativeは通常評価されません。`closed mouth, unchanged expression`など必要な状態をpositiveへ。
+
+## 起動が速くなる設計
+
+- **公式PyTorch CUDA 12.8 runtime**（ベースの圧縮サイズ4.43 GB）をdigest固定。devel、Jupyter、Manager、LTX/RTX/GGUFなど不要なノードパックなし。
+- ComfyUIと依存関係をビルド時に導入。起動時pip/git/コンパイル/ComfyUI全体コピーなし。`/opt/ComfyUI`から直接起動。
+- 必須4ファイルのみ、**36,047,005,223 bytes（36.05 GB / 33.57 GiB）**。High/Low/UMT5/VAEすべてrevision・サイズ・SHA256固定。
+- 大きい順に3ファイル並列、Xet高速モード。HTTP取得はaria2最大16分割、再開対応。
+- 作業先と完成先を同じファイルシステムに置き、検証後にrename。14 GBファイルをキャッシュからもう一度コピーしない。
+- 一度検証したファイルはサイズ・mtime・検証記録が変わらなければ再ハッシュ不要。新規Podは毎回取得する前提。
+- 認証・空き容量・CUDAを確認してから大容量取得。未完了モデルをComfyUIへ公開しない。
+
+**画面が開いた時間と、生成準備完了時間を混同しません。** 8188はまず状態画面。全モデルの検証が終わってからComfyUIへ切り替えます。
+`/workspace/wan22/config/startup-metrics.json`にフェーズ別秒数、モデル別転送+検証時間を記録。イメージpull/unpack時間と初回推論ロード時間は別です。
+
+回線が実効1 Gbpsなら重み36 GBの転送だけで理論上約4.8分、実効10 Gbpsなら約29秒。これにイメージ展開・ディスク・検証時間が加わります。**Network Volumeなしで数十GBの初回取得をゼロ秒にすることはできず、起動秒数の保証はしません。**
+
+## 生成の速度と品質
+
+- 作者配布のFP8 mixed重みを`weight_dtype=default`で読み、再量子化しません。GGUF/Q4/NVFP4への変更なし。
+- 4ステップはこの蒸留モデルの推奨値。非蒸留モデルのステップを勝手に削ったものではありません。
+- PyTorch標準SDPA。SageAttention/TeaCache/FP8-fast/追加蒸留LoRA/`--fast`/torch.compileは既定で使いません。近似計算や初回コンパイルコストを避けます。
+- UMT5をCPU固定しません。ComfyUIの自動GPU管理とoffloadを使い、毎回キャッシュを捨てる処理もありません。
+- 生成後の追加upscale/RIFE/音声生成/モザイクはこのrepoの既定経路には入れません。保存はMP4、H.264 CRF18・veryfast。保存前の生成解像度/フレーム数を下げません。
+- VAEは通常decode。固定ComfyUIのOOM時tiled fallbackに任せます。タイル化は時間/画質特性が変わり得ます。
+
+**LTX→WANで画質が同一になる保証はありません。** ここでの方針は指定WANモデルに対して追加の画質低下策を入れないことです。GPU未接続のCIでは実生成の品質・速度は評価できません。
+
+## GPUエラー
+
+GPU名の判定や`CUDA_VISIBLE_DEVICES`強制変更はしません。最小CUDA実演算を確認し、失敗時はデバイスerrno・libcuda・バージョンを診断JSONへ保存。重要な低レベル情報は通常ログにも出します。
+8188の「診断ファイルを保存」で取得できます。JSONにはPod/GPU識別子を含むため私的に共有してください。トークンや署名付きURLはログへ出しません。
+失敗画面は既定900秒保持。**これはPodを停止する機能ではなく、課金が自動停止するわけではありません。** ホストUVM/ドライバ障害をコンテナから修復したとは主張しません。
+
+## 検証・再現性
 
 ```bash
-docker build --platform linux/amd64 -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.2 .
-docker push ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.2
+python scripts/workflows.py --check
+python -m unittest discover -s tests -v
+docker build -t dasiwa-wan:test .
 ```
 
-SageAttention is installed by default for the workflow's active KJNodes SageAttention path. If the install is unavailable on a future base image, the image still builds and KJNodes falls back to standard attention instead of crashing.
+Docker buildは実際のComfyUIをCPUで起動して両workflowのノード・入力・接続型を照合し、4枚のテスト画像→MP4保存→3枚のdecodeまで確認します。WAN重みのロード・GPU推論は未検証であり、CI成功はその代わりではありません。
 
-```bash
-docker build --platform linux/amd64 --build-arg INSTALL_SAGEATTENTION=false -t ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.2-no-sage .
-```
+コード/テンプレート更新は依存関係レイヤーを再インストールせずにビルド可能。新しい公開タグは`wan22-v9-cu128`と`wan22-v9-cu128-sha-<full commit>`。既存のLTXタグは上書きしません。
+旧LTXデータを`/workspace/ComfyUI`から削除する処理はありません。新WANは`/workspace/wan22`を利用し、編集済みの配布workflowはconfig内に退避してから更新します。
 
-## RunPod template settings
+## 根拠・来歴
 
-Use `runpod-template.json` as the API payload or fill the RunPod UI with these values:
-
-- Container image: `ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.2`
-- Container disk: `80 GB`
-- Volume disk: `160 GB`
-- Volume mount path: `/workspace`
-- HTTP ports: `8188`
-
-ComfyUI runs on HTTP port `8188`.
-
-The Docker base image uses the official PyTorch 2.8 / CUDA 12.8 runtime image so current ComfyUI can use its dynamic VRAM model loader without pulling RunPod's much larger development image on first pod start. This lightweight image starts ComfyUI directly on port `8188`; it does not include the RunPod base image's Jupyter/SSH helper stack.
-Select a RunPod host whose NVIDIA driver supports CUDA 12.8, or rebuild with a lower `BASE_IMAGE` only if you are intentionally targeting older hosts.
-The Transformers package is pinned to `4.56.2` because newer releases import continuous-batching modules that require newer Torch APIs than this workflow stack currently uses.
-ComfyUI starts with `--enable-cors-header` so RunPod's proxy does not trigger host/origin 403 responses.
-ComfyUI also starts with `--reserve-vram 2` by default via `COMFYUI_RESERVE_VRAM=2`, leaving headroom for VAE/post-processing and avoiding edge-of-card allocations on 48 GB GPUs.
-Startup refreshes the ComfyUI application files from the image while preserving `/workspace/ComfyUI/models`, `input`, `output`, `temp`, and `user`. This repairs stale or partial ComfyUI code left on a persistent RunPod volume.
-Model downloads run in the background by default, so ComfyUI can become reachable before the large UNet and text encoder finish downloading.
-The startup script creates tiny placeholder media and image files so inactive video, audio, watermark, and reference-image branches do not fail validation before you replace them.
-KJNodes is patched at image build time so missing or unsupported SageAttention kernels are treated as a warning and the model continues with standard attention, keeping the provided workflow unchanged.
-
-## Model behavior
-
-On first start, `DOWNLOAD_MODELS=true` downloads the model files into `/workspace/ComfyUI/models`.
-Downloads run in parallel by default. Tune `MAX_PARALLEL_DOWNLOADS`, `ARIA2_CONNECTIONS`, and `ARIA2_SPLIT` if your RunPod host or network is unhappy.
-Set `DOWNLOAD_MODELS_BACKGROUND=false` only when you want the container to block ComfyUI startup until every model has finished downloading.
-
-The V39 workflow selects `LTX2/DaSiWa-LTX23-GoldenLace-v3_fp8.safetensors` as the main UNet. The template downloads Golden Lace v3 FP8 from Civitai by default and saves it with that workflow filename.
-If an older RunPod template still passes the legacy Solstice Civitai model URL, the downloader automatically switches it to the V39 Golden Lace v3 defaults.
-
-**No-Civitai fallback:** if `CIVITAI_TOKEN` is not set (or is left as the unresolved `{{ RUNPOD_SECRET_civitai_token }}` placeholder), the downloader automatically fetches the public, ungated **LTX 2.3 distilled transformer** from Hugging Face and saves it under the same `LTX2/DaSiWa-LTX23-GoldenLace-v3_fp8.safetensors` filename. This means generation works out of the box with zero Civitai setup; set `CIVITAI_TOKEN` only if you specifically want the Golden Lace v3 weights.
-
-**Corrupt-download guard:** a gated/failed download often returns a small HTML or JSON error page instead of the model. The downloader now rejects such files (too small, or starting with `<!DOCTYPE`/`<html`/`{"error"`) and fails loudly instead of saving a broken `.safetensors` that would later cause a confusing ComfyUI load error.
-The main transformer is stored in `models/diffusion_models` and symlinked into `models/unet` for compatibility with old and new ComfyUI loaders.
-The V39 VAE paths use `models/vae/LTX2/`; compatibility symlinks are created under `models/vae/LTX/` for the older V36 workflows.
-
-Create RunPod secrets named `hf_token` and `civitai_token`, then set:
-
-```text
-HF_TOKEN={{ RUNPOD_SECRET_hf_token }}
-CIVITAI_TOKEN={{ RUNPOD_SECRET_civitai_token }}
-COMFYUI_RESERVE_VRAM=2
-MAIN_UNET_URL=https://civitai.com/api/download/models/2967331?type=Model&format=SafeTensor&size=full&fp=fp8
-MAIN_UNET_NAME=LTX2/DaSiWa-LTX23-GoldenLace-v3_fp8.safetensors
-```
-
-The downloader appends the token at runtime and masks it in logs.
-Optional Hugging Face LoRAs from `uwgm/nikke-loras` are skipped when `HF_TOKEN`
-is not set. Optional Civitai LoRAs are skipped when `CIVITAI_TOKEN` is not set.
-
-When `DOWNLOAD_OPTIONAL_LORA=true`, startup also downloads the LoRAs mirrored
-from `grawthings-beep/ltx-video-runpod`:
-
-```text
-models/loras/LTX/ltx-2.3-22b-distilled-lora-1.1_fro90_ceil72_condsafe.safetensors
-models/loras/LTX/ltx23_edit_anything_global_rank128_v1_9000steps_adamw.safetensors
-models/loras/LTX/LTX2.3_reasoning_I2V_V3.safetensors
-models/loras/LTX/latexturn_10Eros_i2v_v0.5.safetensors
-models/loras/LTX/LTXV23_FOOTJOB_V1.safetensors
-models/loras/LTX/TentacleMotion_10Eros_i2v_v1.0.safetensors
-models/loras/LTX/stomach_bulge_10eros_sulphur_v1.safetensors
-models/loras/LTX/nsfw_riding_backshot_frontshot_ltx23_v1.0.safetensors
-models/loras/civitai/ltx23_phut_hon_civitai_2806861.safetensors
-models/loras/civitai/smoothmix_animations_ltx_civitai_2911845.safetensors
-models/loras/civitai/civitai_2849892.safetensors
-```
-
-## Workflow files
-
-- `DasiwaLTX23WorkflowsI2VFLF2V_omniforgeCLTX23V36.json`: original file copied from Downloads.
-- `DasiwaLTX23WorkflowsI2VFLF2V_omniforgeCLTX23V36_runpod-default.json`: same workflow, but main UNet changed to the default public LTX 2.3 FP8 transformer file.
-- `DasiwaLTX23WorkflowsI2VFLF2V_omniforgeCLTX23V36_runpod-no-ltx-tiled-decode.json`: older RunPod-safe V36 variant. It removes the optional tiled decode branch, disables optional SageAttention, disables fp16 accumulation for Torch 2.4, and loads the Gemma text encoder on CPU by default for 24 GB GPUs.
-- `DasiwaLTX23WorkflowsI2VFLF2V_omniforgeCLTX23V39.json`: provided V39 workflow copied without content changes. This is the default target for the model names and paths above.
-
-On Pod start, both files are copied to:
-
-```text
-/workspace/ComfyUI/user/default/workflows/
-```
-
-## Notes
-
-- The first startup can take a long time because the LTX 2.3 model and text encoder are large.
-- If you do not use the optional LoRA or post-processing paths, set `DOWNLOAD_OPTIONAL_LORA=false` or `DOWNLOAD_OPTIONAL_POST_MODELS=false`.
-- V39 has disabled GGUF branches that reference `placeholder.gguf`; the downloader creates inert placeholder files so the workflow can open cleanly. Replace them with real GGUF models before enabling those branches.
-- The V39 workflow contains a bypassed `ColorTransfer` node that is not provided by any installed custom-node pack. The image registers a dependency-free compatibility passthrough for it (`custom_nodes/dasiwa-compat`) that returns its input image unchanged, so the workflow no longer reports a missing node type and the (bypassed) branch validates correctly.
+- [指定SeaArtアーカイブ](https://civarchive.com/seaart/models/8a74c3d7c313ee87c8476ee1b858bf39/versions/7dadb3c56a80037da8eaeb7f2cd0042b)
+- [作者公式モデル・推奨sampler・利用条件](https://huggingface.co/darksidewalker/DaSiWa-WAN2.2-I2V)
+- [High v9・SHA256・4step設定](https://civarchive.com/models/1981116?modelVersionId=2555640)
+- [Low v9・SHA256](https://civarchive.com/models/1981116?modelVersionId=2555652)
+- [HF Xetと環境変数](https://huggingface.co/docs/huggingface_hub/en/package_reference/environment_variables)
+- [固定ComfyUI WANノード](https://github.com/Comfy-Org/ComfyUI/blob/a7b1d39d342d102f305797fb5ba12dc304d9c1f5/comfy_extras/nodes_wan.py)
+- GPU診断/状態画面とその回帰テストは同所有者のwan-animate-runpod `f63af08`から移植。

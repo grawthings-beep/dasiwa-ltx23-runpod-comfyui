@@ -8,3 +8,6 @@ input
 models
 venv
 .venv
+archive
+docs
+*.md

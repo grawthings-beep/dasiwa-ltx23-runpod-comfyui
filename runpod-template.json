@@ -1,33 +1,24 @@
 {
-  "name": "dasiwa-ltx23-omniforge-comfyui",
-  "imageName": "ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.2",
+  "name": "DaSiWa WAN 2.2 SynthSeduction v9",
+  "imageName": "ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:wan22-v9-cu128",
   "category": "NVIDIA",
-  "containerDiskInGb": 80,
+  "containerDiskInGb": 30,
+  "volumeInGb": 80,
+  "volumeMountPath": "/workspace",
   "dockerEntrypoint": [],
   "dockerStartCmd": [],
   "env": {
-    "COMFYUI_PORT": "8188",
-    "COMFYUI_RESERVE_VRAM": "2",
-    "DOWNLOAD_MODELS": "true",
-    "DOWNLOAD_MODELS_BACKGROUND": "true",
-    "DOWNLOAD_DEFAULT_UNET": "false",
-    "DOWNLOAD_OPTIONAL_LORA": "true",
-    "DOWNLOAD_OPTIONAL_POST_MODELS": "true",
-    "MAX_PARALLEL_DOWNLOADS": "4",
-    "ARIA2_CONNECTIONS": "8",
-    "ARIA2_SPLIT": "8",
-    "MAIN_UNET_URL": "https://civitai.com/api/download/models/2967331?type=Model&format=SafeTensor&size=full&fp=fp8",
-    "MAIN_UNET_NAME": "LTX2/DaSiWa-LTX23-GoldenLace-v3_fp8.safetensors",
-    "MAIN_UNET_SHA256": "86E14FD4EAF24AE39D3BB2497E9A86C723888A9172CFFECA31C9730DC2C126E2",
-    "HF_TOKEN": "{{ RUNPOD_SECRET_hf_token }}",
-    "CIVITAI_TOKEN": "{{ RUNPOD_SECRET_civitai_token }}"
+    "PORT": "8188", "LISTEN": "0.0.0.0", "DOWNLOAD_MODELS": "1",
+    "MODEL_SOURCE": "auto", "DOWNLOAD_WORKERS": "3", "ARIA2_CONNECTIONS": "16",
+    "HF_XET_HIGH_PERFORMANCE": "1", "HF_XET_NUM_CONCURRENT_RANGE_GETS": "16",
+    "HF_XET_CHUNK_CACHE_SIZE_BYTES": "0", "HF_HUB_DOWNLOAD_TIMEOUT": "300",
+    "CUDA_PREFLIGHT": "1", "CUDA_READY_TIMEOUT": "90", "MODEL_DISK_HEADROOM_GB": "10",
+    "COMFYUI_RESERVE_VRAM": "2", "BOOT_FAILURE_HOLD_SECONDS": "900",
+    "HF_TOKEN": "{{ RUNPOD_SECRET_HF_TOKEN }}",
+    "CIVITAI_API_TOKEN": "{{ RUNPOD_SECRET_CIVITAI_TOKEN }}"
   },
   "isPublic": false,
   "isServerless": false,
-  "ports": [
-    "8188/http"
-  ],
-  "readme": "ComfyUI template for DaSiWa LTX 2.3 OmniForge. Open port 8188 for ComfyUI. Models are downloaded to /workspace/ComfyUI/models on first start.",
-  "volumeInGb": 160,
-  "volumeMountPath": "/workspace"
+  "ports": ["8188/http"],
+  "readme": "WAN 2.2 only. Model-free runtime image; exact 36.05 GB v9 weights downloaded on each fresh Pod. Port 8188 shows startup status before ComfyUI is generation-ready. No network volume required."
 }

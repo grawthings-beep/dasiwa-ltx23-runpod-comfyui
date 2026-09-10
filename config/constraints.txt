@@ -1,0 +1,10 @@
+# Do not allow ComfyUI requirements to replace the CUDA runtime stack.
+torch==2.10.0
+torchvision==0.25.0
+torchaudio==2.10.0
+numpy==2.2.6
+transformers==4.57.6
+tokenizers==0.22.2
+safetensors==0.7.0
+Pillow==11.3.0
+av==17.0.0

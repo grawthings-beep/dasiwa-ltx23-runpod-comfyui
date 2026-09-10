@@ -1,98 +1,40 @@
-ARG BASE_IMAGE=pytorch/pytorch:2.8.0-cuda12.8-cudnn9-runtime
-FROM ${BASE_IMAGE}
-
+# syntax=docker/dockerfile:1.7
+FROM pytorch/pytorch:2.10.0-cuda12.8-cudnn9-runtime@sha256:b85566342b86d13a67712e9315d40cdc2dad7f8d86df1aff3831f80835edbcca
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
-ENV DEBIAN_FRONTEND=noninteractive \
-    PIP_ROOT_USER_ACTION=ignore \
-    PIP_PREFER_BINARY=1 \
-    PYTHONUNBUFFERED=1 \
-    HF_HUB_ENABLE_HF_TRANSFER=1 \
-    HF_XET_HIGH_PERFORMANCE=1 \
-    COMFYUI_DIR=/workspace/ComfyUI
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    aria2 \
-    build-essential \
-    ca-certificates \
-    curl \
-    ffmpeg \
-    git \
-    git-lfs \
-    libgl1 \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
-    ninja-build \
-    rsync \
-    wget \
+ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 PIP_CONSTRAINT=/opt/wan22/constraints.txt \
+    EXPECTED_TORCH_VERSION=2.10.0+cu128 EXPECTED_TORCHVISION_VERSION=0.25.0+cu128 \
+    EXPECTED_TORCHAUDIO_VERSION=2.10.0+cu128 EXPECTED_TORCH_CUDA=12.8 \
+    HF_XET_HIGH_PERFORMANCE=1 HF_XET_CHUNK_CACHE_SIZE_BYTES=0 HF_HUB_DISABLE_TELEMETRY=1
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates aria2 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
-
-RUN python -m pip install --upgrade pip setuptools wheel
-
-WORKDIR /opt
-RUN git clone --depth=1 https://github.com/comfyanonymous/ComfyUI.git /opt/ComfyUI
-
+COPY config/constraints.txt /opt/wan22/constraints.txt
+ARG COMFYUI_REVISION=a7b1d39d342d102f305797fb5ba12dc304d9c1f5
+RUN git init /opt/ComfyUI \
+    && git -C /opt/ComfyUI remote add origin https://github.com/Comfy-Org/ComfyUI.git \
+    && git -C /opt/ComfyUI fetch --depth=1 origin ${COMFYUI_REVISION} \
+    && git -C /opt/ComfyUI checkout --detach FETCH_HEAD \
+    && rm -rf /opt/ComfyUI/.git \
+    && python -m pip install -r /opt/ComfyUI/requirements.txt
+# Isolate Hub 1.x from Transformers 4.x's Hub <1 dependency. Startup only imports
+# the new Hub inside the downloader process, never inside ComfyUI.
+RUN env -u PIP_CONSTRAINT python -m pip install --target /opt/wan22/downloader-libs \
+    huggingface_hub==1.24.0 hf-xet==1.5.2
+COPY custom_nodes/DaSiWa-WAN /opt/ComfyUI/custom_nodes/DaSiWa-WAN
+COPY scripts /opt/wan22/scripts
+COPY config/models.json /opt/wan22/config/models.json
+COPY workflows /opt/wan22/workflows
+COPY api /opt/wan22/api
+COPY tests /opt/wan22/tests
+RUN python /opt/wan22/scripts/gpu_preflight.py --stack-only \
+    && python /opt/wan22/scripts/container_smoke.py
+ARG BUNDLE_REVISION=unknown
+ENV BUNDLE_REVISION=${BUNDLE_REVISION}
+LABEL org.opencontainers.image.source="https://github.com/grawthings-beep/dasiwa-ltx23-runpod-comfyui" \
+      org.opencontainers.image.revision="${BUNDLE_REVISION}" \
+      io.grawthings.workflow="wan22-synthseduction-v9" \
+      io.grawthings.comfy-revision="${COMFYUI_REVISION}"
 WORKDIR /opt/ComfyUI
-RUN python -m pip install --no-cache-dir -r requirements.txt \
-    && python -m pip install --no-cache-dir \
-      accelerate \
-      av \
-      comfy-cli \
-      diffusers \
-      hf_transfer \
-      imageio-ffmpeg \
-      librosa \
-      opencv-python-headless \
-      protobuf \
-      sentencepiece \
-      soundfile \
-      "transformers[timm]==4.56.2"
-
-WORKDIR /opt/ComfyUI/custom_nodes
-ARG WHATDREAMSCOST_COMFYUI_REF=20f639f302c44197c7887d2c677c571e75f3b5cb
-RUN git clone --depth=1 https://github.com/Comfy-Org/ComfyUI-Manager.git ComfyUI-Manager \
-    && git clone --depth=1 https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git ComfyUI-VideoHelperSuite \
-    && git clone --depth=1 https://github.com/rgthree/rgthree-comfy.git rgthree-comfy \
-    && git clone --depth=1 https://github.com/Artificial-Sweetener/comfyui-WhiteRabbit.git comfyui-WhiteRabbit \
-    && git clone --depth=1 https://github.com/kijai/ComfyUI-KJNodes.git ComfyUI-KJNodes \
-    && git clone --depth=1 https://github.com/darksidewalker/ComfyUI-DaSiWa-Nodes.git ComfyUI-DaSiWa-Nodes \
-    && git clone --depth=1 https://github.com/Lightricks/ComfyUI-LTXVideo.git ComfyUI-LTXVideo \
-    && git clone https://github.com/WhatDreamsCost/WhatDreamsCost-ComfyUI.git WhatDreamsCost-ComfyUI \
-    && git -C WhatDreamsCost-ComfyUI checkout "${WHATDREAMSCOST_COMFYUI_REF}" \
-    && git clone --depth=1 https://github.com/city96/ComfyUI-GGUF.git ComfyUI-GGUF \
-    && git clone --depth=1 https://github.com/Comfy-Org/Nvidia_RTX_Nodes_ComfyUI.git Nvidia_RTX_Nodes_ComfyUI
-
-WORKDIR /opt/ComfyUI
-RUN set -eux; \
-    for req in custom_nodes/*/requirements.txt; do \
-      if [ -f "$req" ]; then python -m pip install --no-cache-dir -r "$req"; fi; \
-    done; \
-    python -m pip install --no-cache-dir --upgrade "transformers[timm]==4.56.2"
-
-COPY scripts/patch_ltxvideo_kornia.py /tmp/patch_ltxvideo_kornia.py
-COPY scripts/patch_dasiwa_scaler_legacy.py /tmp/patch_dasiwa_scaler_legacy.py
-COPY scripts/patch_kjnodes_sage_fallback.py /tmp/patch_kjnodes_sage_fallback.py
-RUN python /tmp/patch_ltxvideo_kornia.py /opt/ComfyUI/custom_nodes/ComfyUI-LTXVideo/pyramid_blending.py \
-    && python /tmp/patch_dasiwa_scaler_legacy.py /opt/ComfyUI/custom_nodes/ComfyUI-DaSiWa-Nodes \
-    && python /tmp/patch_kjnodes_sage_fallback.py /opt/ComfyUI/custom_nodes/ComfyUI-KJNodes
-
-ARG INSTALL_SAGEATTENTION=true
-ARG SAGEATTENTION_PACKAGE=sageattention==1.0.6
-RUN if [ "${INSTALL_SAGEATTENTION}" = "true" ]; then \
-      python -m pip install --no-cache-dir "${SAGEATTENTION_PACKAGE}" || \
-      echo "WARNING: SageAttention install failed; KJNodes will fall back to standard attention."; \
-    fi
-
-COPY custom_nodes/dasiwa-compat /opt/ComfyUI/custom_nodes/dasiwa-compat
-
-COPY start.sh /start-comfy.sh
-COPY download_models.sh /download_models.sh
-COPY workflows /opt/workflows
-
-RUN chmod +x /start-comfy.sh /download_models.sh
-
 EXPOSE 8188
-
-CMD ["/start-comfy.sh"]
+ENTRYPOINT []
+CMD ["python", "/opt/wan22/scripts/startup.py"]

@@ -1,0 +1,33 @@
+{
+  "name": "dasiwa-ltx23-omniforge-comfyui",
+  "imageName": "ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:0.2.2",
+  "category": "NVIDIA",
+  "containerDiskInGb": 80,
+  "dockerEntrypoint": [],
+  "dockerStartCmd": [],
+  "env": {
+    "COMFYUI_PORT": "8188",
+    "COMFYUI_RESERVE_VRAM": "2",
+    "DOWNLOAD_MODELS": "true",
+    "DOWNLOAD_MODELS_BACKGROUND": "true",
+    "DOWNLOAD_DEFAULT_UNET": "false",
+    "DOWNLOAD_OPTIONAL_LORA": "true",
+    "DOWNLOAD_OPTIONAL_POST_MODELS": "true",
+    "MAX_PARALLEL_DOWNLOADS": "4",
+    "ARIA2_CONNECTIONS": "8",
+    "ARIA2_SPLIT": "8",
+    "MAIN_UNET_URL": "https://civitai.com/api/download/models/2967331?type=Model&format=SafeTensor&size=full&fp=fp8",
+    "MAIN_UNET_NAME": "LTX2/DaSiWa-LTX23-GoldenLace-v3_fp8.safetensors",
+    "MAIN_UNET_SHA256": "86E14FD4EAF24AE39D3BB2497E9A86C723888A9172CFFECA31C9730DC2C126E2",
+    "HF_TOKEN": "{{ RUNPOD_SECRET_hf_token }}",
+    "CIVITAI_TOKEN": "{{ RUNPOD_SECRET_civitai_token }}"
+  },
+  "isPublic": false,
+  "isServerless": false,
+  "ports": [
+    "8188/http"
+  ],
+  "readme": "ComfyUI template for DaSiWa LTX 2.3 OmniForge. Open port 8188 for ComfyUI. Models are downloaded to /workspace/ComfyUI/models on first start.",
+  "volumeInGb": 160,
+  "volumeMountPath": "/workspace"
+}

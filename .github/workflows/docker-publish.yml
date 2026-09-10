@@ -1,46 +1,48 @@
-name: Build and Publish Docker Image
-
+name: Validate and publish WAN v9
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
-
 permissions:
   contents: read
   packages: write
-
-env:
-  IMAGE_NAME: ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui
-
 jobs:
-  docker:
-    name: Build and publish
+  validate:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python -m pip install Pillow==11.3.0
+      - run: python scripts/workflows.py --check
+      - run: python -m unittest discover -s tests -v
+      - run: python -m compileall -q scripts custom_nodes tests
+  image:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push image
-        uses: docker/build-push-action@v6
+      - uses: docker/build-push-action@v7
+        id: build
         with:
           context: .
           platforms: linux/amd64
           push: true
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache-wan22
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache-wan22,mode=max,image-manifest=true,oci-mediatypes=true
+          build-args: BUNDLE_REVISION=${{ github.sha }}
           tags: |
-            ${{ env.IMAGE_NAME }}:0.2.2
-            ${{ env.IMAGE_NAME }}:0.2.1
-            ${{ env.IMAGE_NAME }}:0.2.0
-            ${{ env.IMAGE_NAME }}:0.1.6
-            ${{ env.IMAGE_NAME }}:latest
+            ghcr.io/${{ github.repository }}:wan22-v9-cu128
+            ghcr.io/${{ github.repository }}:wan22-v9-cu128-sha-${{ github.sha }}
+      - name: Report validation scope
+        run: |
+          echo 'CPU startup, workflow schemas, MP4 output smoke: passed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'GPU generation, visual quality, RunPod cold-start timing: NOT tested by this runner.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Image digest: ${{ steps.build.outputs.digest }}' >> "$GITHUB_STEP_SUMMARY"
