@@ -6,8 +6,10 @@ ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CH
     EXPECTED_TORCH_VERSION=2.10.0+cu128 EXPECTED_TORCHVISION_VERSION=0.25.0+cu128 \
     EXPECTED_TORCHAUDIO_VERSION=2.10.0+cu128 EXPECTED_TORCH_CUDA=12.8 \
     HF_XET_HIGH_PERFORMANCE=1 HF_XET_CHUNK_CACHE_SIZE_BYTES=0 HF_HUB_DISABLE_TELEMETRY=1
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates aria2 libglib2.0-0 \
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates aria2 libglib2.0-0 python3-venv \
     && rm -rf /var/lib/apt/lists/*
+RUN python -m venv --system-site-packages /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
 COPY config/constraints.txt /opt/wan22/constraints.txt
 ARG COMFYUI_REVISION=a7b1d39d342d102f305797fb5ba12dc304d9c1f5
 RUN git init /opt/ComfyUI \

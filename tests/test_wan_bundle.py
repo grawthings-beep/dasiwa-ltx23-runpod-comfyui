@@ -5,6 +5,7 @@ from pathlib import Path
 import struct
 import sys
 import tempfile
+import types
 import unittest
 from unittest import mock
 ROOT = Path(__file__).resolve().parents[1]
@@ -67,6 +68,40 @@ class ModelTests(unittest.TestCase):
                 models.aria_download("https://cdn.example/model?secret=123", Path("model.part"), 16)
             self.assertNotIn("secret", " ".join(run.call_args.args[0]))
             self.assertIn("secret=123", run.call_args.kwargs["input"])
+
+    def test_hf_identity_mismatch_never_falls_back(self):
+        asset = models.load_manifest(ROOT / "config/models.json")[0]
+        sdk = types.ModuleType("huggingface_hub")
+        sdk.hf_hub_url = mock.Mock(return_value="https://huggingface.co/official/file")
+        sdk.get_hf_file_metadata = mock.Mock(return_value=mock.Mock(size=asset["size"], etag="different"))
+        with mock.patch.dict(sys.modules, {"huggingface_hub": sdk}), mock.patch.object(models.urllib.request, "build_opener") as http:
+            with self.assertRaisesRegex(ValueError, "identity"):
+                models.resolve_source(asset)
+            http.assert_not_called()
+
+    def test_hf_plan_requires_exact_digest(self):
+        asset = models.load_manifest(ROOT / "config/models.json")[0]
+        sdk = types.ModuleType("huggingface_hub")
+        sdk.hf_hub_url = mock.Mock(return_value="https://huggingface.co/official/file")
+        sdk.get_hf_file_metadata = mock.Mock(return_value=mock.Mock(size=asset["size"], etag=asset["sha256"]))
+        with mock.patch.dict(sys.modules, {"huggingface_hub": sdk}), mock.patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(models.resolve_source(asset), {"engine": "hf"})
+            self.assertFalse(sdk.get_hf_file_metadata.call_args.kwargs["token"])
+
+    def test_source_access_fails_before_transfer(self):
+        sdk = types.ModuleType("huggingface_hub")
+        sdk.hf_hub_url = mock.Mock(return_value="https://huggingface.co/official/file")
+        sdk.get_hf_file_metadata = mock.Mock(side_effect=OSError("secret-url"))
+        with tempfile.TemporaryDirectory() as root, mock.patch.dict(sys.modules, {"huggingface_hub": sdk}), mock.patch.dict(os.environ, {}, clear=True), mock.patch.object(models.shutil, "disk_usage", return_value=mock.Mock(free=100e9)), mock.patch.object(models, "transfer") as transfer:
+            with self.assertRaises(RuntimeError) as failure:
+                models.provision(ROOT / "config/models.json", root)
+            self.assertNotIn("secret-url", str(failure.exception))
+            transfer.assert_not_called()
+
+    def test_nonfinite_headroom_rejected(self):
+        for value in (float("nan"), float("inf"), -1):
+            with self.assertRaises(ValueError):
+                models.provision(ROOT / "config/models.json", Path("unused"), headroom_gb=value)
 
 
 class WorkflowTests(unittest.TestCase):

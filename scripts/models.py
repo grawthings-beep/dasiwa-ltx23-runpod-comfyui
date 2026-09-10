@@ -3,6 +3,7 @@ import argparse
 import concurrent.futures
 import hashlib
 import json
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -192,7 +193,7 @@ def transfer(asset, plan, root, connections):
 
 
 def provision(manifest, root, *, workers=3, connections=16, headroom_gb=10, source="auto", progress=None):
-    if source not in ("auto", "hf", "civitai") or not 1 <= workers <= 4 or not 1 <= connections <= 16 or headroom_gb < 0:
+    if source not in ("auto", "hf", "civitai") or not 1 <= workers <= 4 or not 1 <= connections <= 16 or not math.isfinite(headroom_gb) or headroom_gb < 0:
         raise ValueError("Invalid provisioning settings")
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)

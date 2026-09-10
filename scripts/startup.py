@@ -49,7 +49,7 @@ def prepare(root, config):
     for source in (BUNDLE / "workflows").glob("*.json"):
         target = destination / source.name
         if target.exists() and target.read_bytes() != source.read_bytes():
-            backup = config / "workflow-backups" / (str(int(time.time())) + "-" + source.name)
+            backup = config / "workflow-backups" / (str(time.time_ns()) + "-" + source.name)
             backup.parent.mkdir(parents=True, exist_ok=True)
             target.replace(backup)
         if not target.exists():
