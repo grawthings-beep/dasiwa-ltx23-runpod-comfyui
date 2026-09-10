@@ -69,29 +69,71 @@ def receipt(path):
     return path.with_name("." + path.name + ".verified.json")
 
 
-def valid(path, asset, record=True):
-    if not path.is_file() or path.stat().st_size != asset["size"]:
-        return False
+def validation_error(path, asset, record=True):
+    if not path.is_file():
+        return "downloaded file missing at expected path"
     st = path.stat()
+    if st.st_size != asset["size"]:
+        return f"size mismatch: expected {asset['size']}, got {st.st_size} bytes"
     marker = {"sha256": asset["sha256"], "size": st.st_size, "mtime_ns": st.st_mtime_ns}
     try:
-        if json.loads(receipt(path).read_text()) == marker:
-            return True
+        if record and json.loads(receipt(path).read_text()) == marker:
+            return None
     except (OSError, ValueError):
         pass
-    if digest(path) != asset["sha256"]:
-        return False
+    actual = digest(path)
+    if actual != asset["sha256"]:
+        return f"SHA256 mismatch: expected {asset['sha256']}, got {actual}"
     # Refuse error pages, even if a manifest was accidentally generated for one.
-    with path.open("rb") as f:
-        header_size = struct.unpack("<Q", f.read(8))[0]
-        if not 2 <= header_size <= min(100 * 1024 * 1024, st.st_size - 8):
-            return False
-        header = json.loads(f.read(header_size))
-        if not isinstance(header, dict) or not any(k != "__metadata__" for k in header):
-            return False
+    try:
+        with path.open("rb") as f:
+            header_size = struct.unpack("<Q", f.read(8))[0]
+            if not 2 <= header_size <= min(100 * 1024 * 1024, st.st_size - 8):
+                return "invalid safetensors header length"
+            header = json.loads(f.read(header_size))
+            if not isinstance(header, dict) or not any(k != "__metadata__" for k in header):
+                return "invalid safetensors tensor metadata"
+    except (ValueError, struct.error):
+        return "invalid safetensors header encoding"
     if record:
         atomic_json(receipt(path), marker)
-    return True
+    return None
+
+
+def valid(path, asset, record=True):
+    return validation_error(path, asset, record) is None
+
+
+def install_verified(stage, final, asset):
+    final.parent.mkdir(parents=True, exist_ok=True)
+    stage.replace(final)  # Same filesystem; no second 14 GB model copy.
+    st = final.stat()
+    atomic_json(receipt(final), {"sha256": asset["sha256"], "size": st.st_size, "mtime_ns": st.st_mtime_ns})
+
+
+def recover_staged(root, asset):
+    """Reuse complete files left under CDN names by the old aria2 invocation.
+
+    Only search this exact hash's private staging directory. Never replace an
+    existing final file or trust a filename alone; verify every recovered byte.
+    """
+    final = safe_path(root, asset["path"])
+    staging_root = safe_path(root, ".staging/" + asset["sha256"])
+    if final.exists() or not staging_root.is_dir():
+        return False
+    for candidate in staging_root.rglob("*"):
+        if candidate.is_symlink() or not candidate.resolve().is_relative_to(staging_root):
+            continue
+        if not candidate.is_file() or candidate.stat().st_size != asset["size"]:
+            continue
+        if candidate.with_name(candidate.name + ".aria2").exists():
+            continue
+        print(f"RECOVER {asset['id']}: checking staged file SHA256", flush=True)
+        if valid(candidate, asset, record=False):
+            install_verified(candidate, final, asset)
+            print(f"RECOVERED {asset['id']}: verified staged file; no download needed", flush=True)
+            return True
+    return False
 
 
 class SafeRedirect(urllib.request.HTTPRedirectHandler):
@@ -121,7 +163,10 @@ def resolve_source(asset, source="auto"):
     key = token("CIVITAI_API_TOKEN") or token("CIVITAI_TOKEN")
     if not key:
         raise RuntimeError(f"{asset['id']}: official HF access unavailable ({hf_error}); set an authorized HF_TOKEN or CIVITAI_API_TOKEN. No weights downloaded.")
-    url = f"https://civitai.com/api/download/models/{asset['civitai_version']}?" + urlencode({"token": key})
+    query = {"token": key}
+    if asset.get("civitai_file"):
+        query["fileId"] = asset["civitai_file"]
+    url = f"https://civitai.com/api/download/models/{asset['civitai_version']}?" + urlencode(query)
     try:
         request = urllib.request.Request(url, headers={"User-Agent": "DaSiWa-WAN-RunPod/1"})
         with urllib.request.build_opener(SafeRedirect()).open(request, timeout=25) as response:
@@ -136,6 +181,9 @@ def resolve_source(asset, source="auto"):
 
 def aria_download(url, stage, connections):
     # Signed CDN URLs go over stdin, never in logs or the process command line.
+    stage = Path(stage).absolute()
+    if any(c in str(value) for value in (url, stage) for c in ("\r", "\n", "\t")):
+        raise ValueError("Invalid aria2 input value")
     binary = shutil.which("aria2c")
     if not binary:
         raise RuntimeError("aria2c missing from image")
@@ -144,10 +192,15 @@ def aria_download(url, stage, connections):
             "--console-log-level=error", "--download-result=hide", "--max-tries=4",
             "--retry-wait=2", "--connect-timeout=20", "--timeout=60",
             "--max-connection-per-server=" + str(connections), "--split=" + str(connections),
-            "--min-split-size=16M", "--dir=" + str(stage.parent), "--out=" + stage.name]
-    result = subprocess.run(args, input=url + "\n", text=True, capture_output=True)
+            "--min-split-size=16M", "--no-conf=true", "--no-netrc=true"]
+    # With --input-file, a global --out is IGNORED by aria2. These must be
+    # indented per-URI options, including when the input file is stdin.
+    payload = f"{url}\n  dir={stage.parent}\n  out={stage.name}\n"
+    result = subprocess.run(args, input=payload, text=True, capture_output=True)
     if result.returncode:
         raise RuntimeError(f"aria2 transfer failed (exit {result.returncode}); credential-bearing output withheld")
+    if not stage.is_file():
+        raise RuntimeError("aria2 completed but expected output file is missing")
 
 
 def transfer(asset, plan, root, connections):
@@ -182,11 +235,10 @@ def transfer(asset, plan, root, connections):
     else:
         aria_download(plan["url"], stage, connections)
     print(f"VERIFY {asset['id']} SHA256", flush=True)
-    if not valid(stage, asset, record=False):
-        raise RuntimeError(f"{asset['id']}: size, SHA256 or safetensors validation failed; file not installed")
-    stage.replace(final)  # Same filesystem; no second 14 GB model copy.
-    st = final.stat()
-    atomic_json(receipt(final), {"sha256": asset["sha256"], "size": st.st_size, "mtime_ns": st.st_mtime_ns})
+    failure = validation_error(stage, asset, record=False)
+    if failure:
+        raise RuntimeError(f"{asset['id']}: {failure}; file not installed")
+    install_verified(stage, final, asset)
     elapsed = time.monotonic() - started
     print(f"READY {asset['id']} {elapsed:.1f}s (transfer + verification)", flush=True)
     return {"id": asset["id"], "engine": engine, "seconds": round(elapsed, 2), "bytes": asset["size"]}
@@ -198,6 +250,10 @@ def provision(manifest, root, *, workers=3, connections=16, headroom_gb=10, sour
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     assets = load_manifest(manifest)
+    if progress:
+        progress("recovering-staged", "前回取得済みのモデルがあれば検証して再利用します")
+    for asset in assets:
+        recover_staged(root, asset)
     missing = [a for a in assets if not valid(safe_path(root, a["path"]), a)]
     for a in missing:
         if safe_path(root, a["path"]).exists():

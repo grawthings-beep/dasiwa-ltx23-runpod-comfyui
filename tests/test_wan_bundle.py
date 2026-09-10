@@ -24,6 +24,7 @@ class ModelTests(unittest.TestCase):
         for a in assets[:2]:
             self.assertIn("Distilled/FP8/v09/", a["file"])
         self.assertNotEqual(assets[0]["sha256"], assets[1]["sha256"])
+        self.assertEqual({a["id"]: a["civitai_file"] for a in assets[:2]}, {"high": 2455463, "low": 2455626})
 
     def test_unsafe_paths(self):
         with tempfile.TemporaryDirectory() as root:

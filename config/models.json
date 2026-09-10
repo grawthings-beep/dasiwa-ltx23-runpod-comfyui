@@ -7,14 +7,14 @@
       "repo": "darksidewalker/DaSiWa-WAN2.2-I2V", "revision": "2ee1f70058b874ce009b810eee4e65320d8cd8ba",
       "file": "Distilled/FP8/v09/DasiwaWAN22I2V14BLightspeed_synthseductionHighV9.safetensors",
       "size": 14528641504, "sha256": "f1a2e7b4b65fa918931b9194df6dfc50ab6309ef492394c32c0da5f7ef630870",
-      "civitai_version": 2555640
+      "civitai_version": 2555640, "civitai_file": 2455463
     },
     {
       "id": "low", "path": "diffusion_models/DasiwaWAN22I2V14BLightspeed_synthseductionLowV9.safetensors",
       "repo": "darksidewalker/DaSiWa-WAN2.2-I2V", "revision": "2ee1f70058b874ce009b810eee4e65320d8cd8ba",
       "file": "Distilled/FP8/v09/DasiwaWAN22I2V14BLightspeed_synthseductionLowV9.safetensors",
       "size": 14528641504, "sha256": "ae436c2d8c8d19ce51d8070b3f8089aa942441aa16c1d3b22cc65263dd56f67e",
-      "civitai_version": 2555652
+      "civitai_version": 2555652, "civitai_file": 2455626
     },
     {
       "id": "text", "path": "text_encoders/umt5_xxl_fp8_e4m3fn_scaled.safetensors",

@@ -29,6 +29,7 @@ COPY workflows /opt/wan22/workflows
 COPY api /opt/wan22/api
 COPY tests /opt/wan22/tests
 RUN python /opt/wan22/scripts/gpu_preflight.py --stack-only \
+    && python -m unittest discover -s /opt/wan22/tests -p test_aria_download.py -v \
     && python /opt/wan22/scripts/container_smoke.py
 ARG BUNDLE_REVISION=unknown
 ENV BUNDLE_REVISION=${BUNDLE_REVISION}

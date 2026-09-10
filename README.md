@@ -18,6 +18,14 @@
 
 環境変数の全項目は [runpod.env.example](runpod.env.example)。RunPod Secretsの鍵アイコンからHF/Civitaiトークンを紐付けます。**古いLTXテンプレートの環境変数は引き継がず、このファイルを使ってください。**
 
+### 2026-09-10: 初版のCivitai保存名不具合を修正
+
+初版commit `1d8dedf`では、aria2にstdinでURLを渡しながら保存名をコマンドラインで指定していたため、保存名が無視されていました。ダウンロード後に存在しない`model.part`を検証し、`size, SHA256 or safetensors validation failed`と表示する実装不具合です。モデルの破損やGPU異常を意味するとは限りません。
+
+修正版はURLごとの保存名指定に変更し、**実際のaria2 + ローカルHTTPサーバー**で旧不具合の再現、新経路の取得→SHA256確認→正式配置をCI・コンテナ両方で試験します。ファイル未存在・サイズ不一致・ハッシュ不一致・ヘッダー異常も別々に表示します。
+
+同じPodローカルVolumeが残っている場合、旧版が`.staging/<SHA256>/`に残した取得済みファイルを全体検証してから再利用します（`RECOVERED high/low`）。破損・未完了ファイルや別モデルは採用しません。**旧SHAタグのまま再起動しても修正は入りません。** 成功した新しいSHAタグへ変更してください。既存のWAN用環境変数は変更不要です。
+
 ### ダウンロード元・アクセス権
 
 1. [作者公式Hugging Face](https://huggingface.co/darksidewalker/DaSiWa-WAN2.2-I2V)で、HF_TOKENと同じアカウントから利用条件を確認・同意してください。これはユーザー本人が行う操作です。
@@ -87,7 +95,7 @@ python -m unittest discover -s tests -v
 docker build -t dasiwa-wan:test .
 ```
 
-Docker buildは実際のComfyUIをCPUで起動して両workflowのノード・入力・接続型を照合し、4枚のテスト画像→MP4保存→3枚のdecodeまで確認します。WAN重みのロード・GPU推論は未検証であり、CI成功はその代わりではありません。
+Docker buildは実aria2によるHTTP取得・配置の回帰試験に加えて、実際のComfyUIをCPUで起動して両workflowのノード・入力・接続型を照合し、4枚のテスト画像→MP4保存→3枚のdecodeまで確認します。WAN重みのロード・GPU推論は未検証であり、CI成功はその代わりではありません。
 
 コード/テンプレート更新は依存関係レイヤーを再インストールせずにビルド可能。新しい公開タグは`wan22-v9-cu128`と`wan22-v9-cu128-sha-<full commit>`。既存のLTXタグは上書きしません。
 旧LTXデータを`/workspace/ComfyUI`から削除する処理はありません。新WANは`/workspace/wan22`を利用し、編集済みの配布workflowはconfig内に退避してから更新します。
@@ -99,5 +107,6 @@ Docker buildは実際のComfyUIをCPUで起動して両workflowのノード・�
 - [High v9・SHA256・4step設定](https://civarchive.com/models/1981116?modelVersionId=2555640)
 - [Low v9・SHA256](https://civarchive.com/models/1981116?modelVersionId=2555652)
 - [HF Xetと環境変数](https://huggingface.co/docs/huggingface_hub/en/package_reference/environment_variables)
+- [aria2のinput-fileと保存名指定](https://aria2.github.io/manual/en/html/aria2c.html#cmdoption-o)
 - [固定ComfyUI WANノード](https://github.com/Comfy-Org/ComfyUI/blob/a7b1d39d342d102f305797fb5ba12dc304d9c1f5/comfy_extras/nodes_wan.py)
 - GPU診断/状態画面とその回帰テストは同所有者のwan-animate-runpod `f63af08`から移植。

@@ -15,6 +15,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: python -m pip install Pillow==11.3.0
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends aria2
       - run: python scripts/workflows.py --check
       - run: python -m unittest discover -s tests -v
       - run: python -m compileall -q scripts custom_nodes tests
@@ -43,6 +44,6 @@ jobs:
             ghcr.io/${{ github.repository }}:wan22-v9-cu128-sha-${{ github.sha }}
       - name: Report validation scope
         run: |
-          echo 'CPU startup, workflow schemas, MP4 output smoke: passed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Real aria2 download/verify/install, CPU startup, workflow schemas, MP4 output smoke: passed.' >> "$GITHUB_STEP_SUMMARY"
           echo 'GPU generation, visual quality, RunPod cold-start timing: NOT tested by this runner.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Image digest: ${{ steps.build.outputs.digest }}' >> "$GITHUB_STEP_SUMMARY"
