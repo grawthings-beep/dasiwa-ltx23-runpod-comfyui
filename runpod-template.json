@@ -20,5 +20,5 @@
   "isPublic": false,
   "isServerless": false,
   "ports": ["8188/http"],
-  "readme": "WAN 2.2 only. Model-free runtime image; exact 36.05 GB v9 weights downloaded on each fresh Pod. Port 8188 shows startup status before ComfyUI is generation-ready. No network volume required."
+  "readme": "WAN 2.2 only. Model-free runtime; 36.07 GB including RIFE/SPAN downloaded on each fresh Pod, plus mosaic detector. 720x960 generation -> RIFE x2 -> SPAN x2 -> 1440x1920 / 32fps. Loop: 5 seconds. Port 8188 shows startup status. No network volume required."
 }

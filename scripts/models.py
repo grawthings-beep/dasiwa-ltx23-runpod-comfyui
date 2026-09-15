@@ -13,6 +13,7 @@ import subprocess
 import sys
 import time
 import urllib.request
+import zipfile
 from urllib.parse import urlencode
 
 
@@ -50,6 +51,8 @@ def load_manifest(path):
         if a["id"] in seen or not re.fullmatch(r"[a-z0-9_-]+", a["id"]):
             raise ValueError("Duplicate or invalid asset id")
         seen.add(a["id"])
+        if a.get("format", "safetensors") not in ("safetensors", "torch-state-dict"):
+            raise ValueError("Unsupported model format")
         if not re.fullmatch(r"[0-9a-f]{64}", a["sha256"]) or not re.fullmatch(r"[0-9a-f]{40}", a["revision"]) or a["size"] <= 0:
             raise ValueError("Models must have pinned revision, size and SHA256")
     if len({a["path"] for a in assets}) != len(assets):
@@ -84,6 +87,19 @@ def validation_error(path, asset, record=True):
     actual = digest(path)
     if actual != asset["sha256"]:
         return f"SHA256 mismatch: expected {asset['sha256']}, got {actual}"
+    # Pinned RIFE uses a PyTorch ZIP state dict. Never unpickle in the downloader;
+    # the runtime uses weights_only=True after checking this exact identity again.
+    if asset.get("format") == "torch-state-dict":
+        try:
+            with zipfile.ZipFile(path) as archive:
+                names = archive.namelist()
+                if not any(n.endswith("/data.pkl") for n in names) or archive.testzip() is not None:
+                    return "invalid PyTorch state dict archive"
+        except zipfile.BadZipFile:
+            return "invalid PyTorch state dict archive"
+        if record:
+            atomic_json(receipt(path), marker)
+        return None
     # Refuse error pages, even if a manifest was accidentally generated for one.
     try:
         with path.open("rb") as f:

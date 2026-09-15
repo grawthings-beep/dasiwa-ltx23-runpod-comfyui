@@ -27,6 +27,18 @@
       "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged", "revision": "c4f60d30c55a624e35427060fdd217579a6c1d77",
       "file": "split_files/vae/wan_2.1_vae.safetensors",
       "size": 253815318, "sha256": "2fc39d31359a4b0a64f55876d8ff7fa8d780956ae2cb13463b0223e15148976b"
+    },
+    {
+      "id": "rife", "path": "rife/rife49.pth", "format": "torch-state-dict",
+      "repo": "lividtm/RIFE", "revision": "15e1387eeef9858f5267cf011134aef9192469f0",
+      "file": "rife49.pth", "size": 21345274,
+      "sha256": "e55fd00f3cc184e3c65961f4bb827a9da022e78eed36b055242c0ac30000d533"
+    },
+    {
+      "id": "upscale", "path": "upscale_models/2xNomosUni_span_multijpg.safetensors",
+      "repo": "Phips/2xNomosUni_span_multijpg", "revision": "ed6111c4cabdaf42b75e6535600d5370cce9e4e2",
+      "file": "2xNomosUni_span_multijpg.safetensors", "size": 4461056,
+      "sha256": "bee2a9c082f2b8f6e7f5db504b36593c24a1a959511f587114c399ca58b9c92c"
     }
   ]
 }

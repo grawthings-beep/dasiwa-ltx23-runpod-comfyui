@@ -7,6 +7,34 @@ import torch
 import folder_paths
 from comfy_api.latest import ComfyExtension, io, ui
 from .mosaic_nodes import WanAutoMosaicVideo, MODEL_FILENAME, DEFAULT_CLASSES
+from . import postprocess
+
+
+class DaSiWaRIFE2x(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(node_id="DaSiWaRIFE2x", display_name="RIFE 4.9 · 2x / Loop Timing", category="DaSiWa/video",
+            inputs=[io.Image.Input("images"), io.Boolean.Input("enabled", default=True),
+                    io.Float.Input("source_fps", default=16, min=1, max=60, step=1),
+                    io.Boolean.Input("loop", default=True, tooltip="Remove ONE final generated endpoint AFTER interpolation. Keep trim disabled downstream.")],
+            outputs=[io.Image.Output(), io.Float.Output(display_name="output_fps")])
+
+    @classmethod
+    def execute(cls, images, enabled, source_fps, loop):
+        frames, fps = postprocess.interpolate(images, enabled, source_fps, loop)
+        return io.NodeOutput(frames, fps)
+
+
+class DaSiWaUpscale2x(io.ComfyNode):
+    @classmethod
+    def define_schema(cls):
+        return io.Schema(node_id="DaSiWaUpscale2x", display_name="SPAN · 2x Framewise Upscale", category="DaSiWa/video",
+            inputs=[io.Image.Input("images"), io.Boolean.Input("enabled", default=True)],
+            outputs=[io.Image.Output()])
+
+    @classmethod
+    def execute(cls, images, enabled):
+        return io.NodeOutput(postprocess.upscale(images, enabled))
 
 
 class DaSiWaAutoMosaic(io.ComfyNode):
@@ -90,7 +118,7 @@ class DaSiWaSaveMP4(io.ComfyNode):
 
 class DaSiWaExtension(ComfyExtension):
     async def get_node_list(self):
-        return [DaSiWaSaveMP4, DaSiWaAutoMosaic]
+        return [DaSiWaSaveMP4, DaSiWaAutoMosaic, DaSiWaRIFE2x, DaSiWaUpscale2x]
 
 
 async def comfy_entrypoint():

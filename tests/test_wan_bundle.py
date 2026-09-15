@@ -18,9 +18,9 @@ import startup
 class ModelTests(unittest.TestCase):
     def test_exact_v9_assets(self):
         assets = models.load_manifest(ROOT / "config/models.json")
-        self.assertEqual(len(assets), 4)
-        self.assertEqual(sum(a["size"] for a in assets), 36047005223)
-        self.assertEqual({a["id"] for a in assets}, {"high", "low", "text", "vae"})
+        self.assertEqual(len(assets), 6)
+        self.assertEqual(sum(a["size"] for a in assets), 36072811553)
+        self.assertEqual({a["id"] for a in assets}, {"high", "low", "text", "vae", "rife", "upscale"})
         for a in assets[:2]:
             self.assertIn("Distilled/FP8/v09/", a["file"])
         self.assertNotEqual(assets[0]["sha256"], assets[1]["sha256"])
@@ -128,8 +128,10 @@ class WorkflowTests(unittest.TestCase):
         _, api = workflows.build(True)
         condition = api["10"]["inputs"]
         self.assertEqual(condition["start_image"], condition["end_image"])
-        self.assertTrue(api["14"]["inputs"]["trim_last_frame"])
-        self.assertEqual(api["14"]["inputs"]["images"], ["13", 0])
+        self.assertFalse(api["14"]["inputs"]["trim_last_frame"])
+        self.assertTrue(api["17"]["inputs"]["loop"])
+        self.assertEqual(api["14"]["inputs"]["images"], ["18", 0])
+        self.assertEqual(api["14"]["inputs"]["fps"], ["17", 1])
 
     def test_ui_links_and_nonoverlapping_cards(self):
         for ui, api in (workflows.build(False), workflows.build(True), workflows.build_mosaic()):

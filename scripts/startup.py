@@ -40,10 +40,10 @@ def comfy_command(root, config):
 
 
 def prepare(root, config):
-    for folder in ("input", "output", "temp", "user/default/workflows/DaSiWa-WAN", "models/diffusion_models", "models/text_encoders", "models/vae", "models/loras", "models/auto_mosaic"):
+    for folder in ("input", "output", "temp", "user/default/workflows/DaSiWa-WAN", "models/diffusion_models", "models/text_encoders", "models/vae", "models/loras", "models/auto_mosaic", "models/rife", "models/upscale_models"):
         (root / folder).mkdir(parents=True, exist_ok=True)
     config.mkdir(parents=True, exist_ok=True)
-    paths = {"wan_workspace": {"base_path": str(root), **{name: "models/" + name for name in ("diffusion_models", "text_encoders", "vae", "loras", "auto_mosaic")}}}
+    paths = {"wan_workspace": {"base_path": str(root), **{name: "models/" + name for name in ("diffusion_models", "text_encoders", "vae", "loras", "auto_mosaic", "rife", "upscale_models")}}}
     # JSON is valid YAML, and quotes special characters in mounted paths safely.
     atomic_json(config / "extra-model-paths.yaml", paths)
     destination = root / "user/default/workflows/DaSiWa-WAN"

@@ -213,20 +213,51 @@
       "title": "06 · Decode · native OOM fallback"
     }
   },
-  "14": {
-    "class_type": "DaSiWaSaveMP4",
+  "17": {
+    "class_type": "DaSiWaRIFE2x",
     "inputs": {
-      "fps": 16.0,
-      "filename_prefix": "DaSiWa/loop",
-      "crf": 18,
-      "trim_last_frame": true,
+      "enabled": true,
+      "source_fps": 16.0,
+      "loop": true,
       "images": [
         "13",
         0
       ]
     },
     "_meta": {
-      "title": "07 · Save MP4 · 80 frames = 5 seconds"
+      "title": "07 · RIFE 4.9 · 16 -> 32 FPS · loop trim"
+    }
+  },
+  "18": {
+    "class_type": "DaSiWaUpscale2x",
+    "inputs": {
+      "enabled": true,
+      "images": [
+        "17",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "08 · 2x NomosUni SPAN · 1440 x 1920"
+    }
+  },
+  "14": {
+    "class_type": "DaSiWaSaveMP4",
+    "inputs": {
+      "fps": [
+        "17",
+        1
+      ],
+      "filename_prefix": "DaSiWa/loop",
+      "crf": 18,
+      "trim_last_frame": false,
+      "images": [
+        "18",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "09 · Save MP4 · 160 frames = 5 seconds"
     }
   }
 }

@@ -1,8 +1,8 @@
 {
   "id": "ba2c9cc1-49b5-5db2-8c3d-8b51a6a79211",
-  "revision": 0,
-  "last_node_id": 15,
-  "last_link_id": 19,
+  "revision": 1,
+  "last_node_id": 18,
+  "last_link_id": 22,
   "nodes": [
     {
       "id": 1,
@@ -569,16 +569,16 @@
       "widgets_values": []
     },
     {
-      "id": 14,
-      "type": "DaSiWaSaveMP4",
-      "title": "07 · Save MP4 · 81 frames / 16 FPS",
+      "id": 17,
+      "type": "DaSiWaRIFE2x",
+      "title": "07 · RIFE 4.9 · 16 -> 32 FPS",
       "pos": [
         1560,
         1300
       ],
       "size": [
         440,
-        360
+        220
       ],
       "flags": {},
       "order": 13,
@@ -590,12 +590,105 @@
           "link": 19
         }
       ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            20
+          ]
+        },
+        {
+          "name": "output_fps",
+          "type": "FLOAT",
+          "links": [
+            22
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DaSiWaRIFE2x"
+      },
+      "widgets_values": [
+        true,
+        16.0,
+        false
+      ]
+    },
+    {
+      "id": 18,
+      "type": "DaSiWaUpscale2x",
+      "title": "08 · 2x NomosUni SPAN · 1440 x 1920",
+      "pos": [
+        2060,
+        1300
+      ],
+      "size": [
+        440,
+        150
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DaSiWaUpscale2x"
+      },
+      "widgets_values": [
+        true
+      ]
+    },
+    {
+      "id": 14,
+      "type": "DaSiWaSaveMP4",
+      "title": "09 · Save MP4 · 161 frames / 32 FPS",
+      "pos": [
+        2560,
+        1300
+      ],
+      "size": [
+        440,
+        360
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 21
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "link": 22,
+          "widget": {
+            "name": "fps"
+          }
+        }
+      ],
       "outputs": [],
       "properties": {
         "Node name for S&R": "DaSiWaSaveMP4"
       },
       "widgets_values": [
-        16.0,
+        32.0,
         "DaSiWa/i2v",
         18,
         false
@@ -610,14 +703,14 @@
       ],
       "size": [
         930,
-        300
+        480
       ],
       "flags": {},
-      "order": 14,
+      "order": 16,
       "mode": 0,
       "properties": {},
       "widgets_values": [
-        "Start: upload an image, describe motion, then Run.\n720 x 960 / 81 frames / 16 FPS / 4 TOTAL steps (2 high + 2 low).\nNative checkpoint precision; do not force fp8_fast or add Lightning/LightX2V.\nThe same seed is kept for comparisons; change HIGH noise_seed for variation.\nCFG=1 does not evaluate a negative prompt. No audio/upscale/interpolation pass."
+        "Start: upload an image, describe motion, then Run.\nGenerate: 720 x 960 / 81 frames / 16 FPS / 4 TOTAL steps (2 high + 2 low).\nFinish: RIFE 4.9 x2 -> SPAN x2 -> 1440 x 1920 / 32 FPS MP4.\nBoth postprocess nodes have an enabled switch. RIFE OFF automatically saves at 16 FPS.\nDo NOT bypass the RIFE node or disconnect its FPS output; use enabled=false instead.\nNative checkpoint precision; do not force fp8_fast or add Lightning/LightX2V.\nThe same seed is kept for comparisons; change HIGH noise_seed for variation.\nCFG=1 does not evaluate a negative prompt. No audio. Postprocessing adds time/RAM."
       ],
       "title": "READ ME · Quality / speed / loop boundaries"
     }
@@ -771,16 +864,40 @@
       19,
       13,
       0,
+      17,
+      0,
+      "IMAGE"
+    ],
+    [
+      20,
+      17,
+      0,
+      18,
+      0,
+      "IMAGE"
+    ],
+    [
+      21,
+      18,
+      0,
       14,
       0,
       "IMAGE"
+    ],
+    [
+      22,
+      17,
+      1,
+      14,
+      1,
+      "FLOAT"
     ]
   ],
   "groups": [],
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.55,
+      "scale": 0.45,
       "offset": [
         50,
         50

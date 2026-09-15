@@ -213,10 +213,41 @@
       "title": "06 · Decode · native OOM fallback"
     }
   },
+  "17": {
+    "class_type": "DaSiWaRIFE2x",
+    "inputs": {
+      "enabled": true,
+      "source_fps": 16.0,
+      "loop": true,
+      "images": [
+        "13",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "07 · RIFE 4.9 · 16 -> 32 FPS · loop trim"
+    }
+  },
+  "18": {
+    "class_type": "DaSiWaUpscale2x",
+    "inputs": {
+      "enabled": true,
+      "images": [
+        "17",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "08 · 2x NomosUni SPAN · 1440 x 1920"
+    }
+  },
   "14": {
     "class_type": "DaSiWaSaveMP4",
     "inputs": {
-      "fps": 16.0,
+      "fps": [
+        "17",
+        1
+      ],
       "filename_prefix": "DaSiWa/loop_mosaic",
       "crf": 18,
       "trim_last_frame": false,
@@ -226,14 +257,14 @@
       ]
     },
     "_meta": {
-      "title": "07 · Save MP4 · 80 frames = 5 seconds"
+      "title": "09 · Save MP4 · 160 frames = 5 seconds"
     }
   },
   "16": {
     "class_type": "DaSiWaAutoMosaic",
     "inputs": {
       "images": [
-        "13",
+        "18",
         0
       ],
       "coverage_preset": "JUST",
@@ -243,10 +274,10 @@
       "max_gap_frames": 3,
       "target_classes": "pussy,penis,testicles",
       "device": "auto",
-      "trim_last_frame": true
+      "trim_last_frame": false
     },
     "_meta": {
-      "title": "07 · Auto Mosaic · JUST · output only"
+      "title": "09 · Auto Mosaic · JUST · output only"
     }
   }
 }

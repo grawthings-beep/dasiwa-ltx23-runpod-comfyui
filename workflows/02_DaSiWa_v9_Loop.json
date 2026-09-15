@@ -1,8 +1,8 @@
 {
   "id": "daa13305-249b-51dd-a052-9fcdb1e497ab",
-  "revision": 0,
-  "last_node_id": 15,
-  "last_link_id": 20,
+  "revision": 1,
+  "last_node_id": 18,
+  "last_link_id": 23,
   "nodes": [
     {
       "id": 1,
@@ -26,7 +26,7 @@
           "type": "IMAGE",
           "links": [
             8,
-            20
+            23
           ]
         },
         {
@@ -376,7 +376,7 @@
         {
           "name": "end_image",
           "type": "IMAGE",
-          "link": 20
+          "link": 23
         }
       ],
       "outputs": [
@@ -580,16 +580,16 @@
       "widgets_values": []
     },
     {
-      "id": 14,
-      "type": "DaSiWaSaveMP4",
-      "title": "07 · Save MP4 · 80 frames = 5 seconds",
+      "id": 17,
+      "type": "DaSiWaRIFE2x",
+      "title": "07 · RIFE 4.9 · 16 -> 32 FPS · loop trim",
       "pos": [
         1560,
         1300
       ],
       "size": [
         440,
-        360
+        220
       ],
       "flags": {},
       "order": 13,
@@ -601,15 +601,108 @@
           "link": 19
         }
       ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            20
+          ]
+        },
+        {
+          "name": "output_fps",
+          "type": "FLOAT",
+          "links": [
+            22
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DaSiWaRIFE2x"
+      },
+      "widgets_values": [
+        true,
+        16.0,
+        true
+      ]
+    },
+    {
+      "id": 18,
+      "type": "DaSiWaUpscale2x",
+      "title": "08 · 2x NomosUni SPAN · 1440 x 1920",
+      "pos": [
+        2060,
+        1300
+      ],
+      "size": [
+        440,
+        150
+      ],
+      "flags": {},
+      "order": 14,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 20
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            21
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DaSiWaUpscale2x"
+      },
+      "widgets_values": [
+        true
+      ]
+    },
+    {
+      "id": 14,
+      "type": "DaSiWaSaveMP4",
+      "title": "09 · Save MP4 · 160 frames = 5 seconds",
+      "pos": [
+        2560,
+        1300
+      ],
+      "size": [
+        440,
+        360
+      ],
+      "flags": {},
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 21
+        },
+        {
+          "name": "fps",
+          "type": "FLOAT",
+          "link": 22,
+          "widget": {
+            "name": "fps"
+          }
+        }
+      ],
       "outputs": [],
       "properties": {
         "Node name for S&R": "DaSiWaSaveMP4"
       },
       "widgets_values": [
-        16.0,
+        32.0,
         "DaSiWa/loop",
         18,
-        true
+        false
       ]
     },
     {
@@ -621,14 +714,14 @@
       ],
       "size": [
         930,
-        300
+        480
       ],
       "flags": {},
-      "order": 14,
+      "order": 16,
       "mode": 0,
       "properties": {},
       "widgets_values": [
-        "Start: upload an image, describe motion, then Run.\n720 x 960 / 81 frames / 16 FPS / 4 TOTAL steps (2 high + 2 low).\nNative checkpoint precision; do not force fp8_fast or add Lightning/LightX2V.\nThe same seed is kept for comparisons; change HIGH noise_seed for variation.\nCFG=1 does not evaluate a negative prompt. No audio/upscale/interpolation pass.\nLoop: the image CONDITIONS both ends; no source image is pasted into the result.\nThe repeated endpoint is dropped (80 frames / 16 FPS = 5s).\nA seamless motion/velocity match is NOT guaranteed. Use cyclic motion and a fixed camera."
+        "Start: upload an image, describe motion, then Run.\nGenerate: 720 x 960 / 81 frames / 16 FPS / 4 TOTAL steps (2 high + 2 low).\nFinish: RIFE 4.9 x2 -> SPAN x2 -> 1440 x 1920 / 32 FPS MP4.\nBoth postprocess nodes have an enabled switch. RIFE OFF automatically saves at 16 FPS.\nDo NOT bypass the RIFE node or disconnect its FPS output; use enabled=false instead.\nNative checkpoint precision; do not force fp8_fast or add Lightning/LightX2V.\nThe same seed is kept for comparisons; change HIGH noise_seed for variation.\nCFG=1 does not evaluate a negative prompt. No audio. Postprocessing adds time/RAM.\nLoop: the image CONDITIONS both ends; no source image is pasted into the result.\nRIFE handles the final interval, then drops ONLY the endpoint: 160 frames / 32 FPS = 5s.\nKeep trim_last_frame OFF in BOTH the mosaic and MP4 saver.\nA seamless motion/velocity match is NOT guaranteed. Use cyclic motion and a fixed camera."
       ],
       "title": "READ ME · Quality / speed / loop boundaries"
     }
@@ -782,12 +875,36 @@
       19,
       13,
       0,
-      14,
+      17,
       0,
       "IMAGE"
     ],
     [
       20,
+      17,
+      0,
+      18,
+      0,
+      "IMAGE"
+    ],
+    [
+      21,
+      18,
+      0,
+      14,
+      0,
+      "IMAGE"
+    ],
+    [
+      22,
+      17,
+      1,
+      14,
+      1,
+      "FLOAT"
+    ],
+    [
+      23,
       1,
       0,
       10,
@@ -799,7 +916,7 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.55,
+      "scale": 0.45,
       "offset": [
         50,
         50

@@ -121,9 +121,10 @@ class MosaicTests(unittest.TestCase):
         _, new = workflows.build_mosaic()
         for key in old:
             if key != "14": self.assertEqual(old[key], new[key])
-        self.assertEqual(new["16"]["inputs"]["images"], ["13", 0])
+        self.assertEqual(new["16"]["inputs"]["images"], ["18", 0])
         self.assertEqual(new["14"]["inputs"]["images"], ["16", 0])
-        self.assertTrue(new["16"]["inputs"]["trim_last_frame"])
+        self.assertFalse(new["16"]["inputs"]["trim_last_frame"])
+        self.assertTrue(new["17"]["inputs"]["loop"])
         self.assertFalse(new["14"]["inputs"]["trim_last_frame"])
 
 

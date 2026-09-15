@@ -39,11 +39,12 @@
 ComfyUIのworkflow一覧 → `DaSiWa-WAN`。
 
 - `01_DaSiWa_v9_I2V`: 普通の画像→動画。
-- `02_DaSiWa_v9_Loop`: 同じ画像を開始/終了の条件に使うループ候補生成。終端1枚を落として80フレーム/16 fps = **5秒**。
-- `03_DaSiWa_v9_Loop_AutoMosaic`: 02と同じ生成設定＋完成フレームへの自動モザイク。元の01/02は変更なし。
+- `02_DaSiWa_v9_Loop`: 同じ画像を開始/終了の条件に使うループ候補生成。RIFE補間後に終端1枚を落として160フレーム/32 fps = **5秒**。
+- `03_DaSiWa_v9_Loop_AutoMosaic`: 02と同じ生成・補間・拡大設定＋完成フレームへの自動モザイク。
 
 画像をアップロードし、「Describe the motion」を書き、「Width / Height / Frames」でサイズを設定してRun。
 初期値: **720×960 / 81フレーム / 16 fps / 4ステップ合計（High 2 + Low 2）/ CFG 1 / Euler + Simple / Shift 5**。
+3本とも後処理は **RIFE 4.9の2倍補間 → 2x NomosUni SPAN → 1440×1920・32 fps保存**。通常I2Vは161枚（約5.03秒）、Loopは160枚（5秒）。生成モデル・解像度・ステップは変更していません。
 seedは比較しやすいよう固定。変化を出すときはHIGH側の`noise_seed`を変えます。
 
 モデルには高速化蒸留が内蔵されています。**LightX2V・Lightningなどの高速化LoRAをさらに重ねないでください。** 追加の概念LoRAはこの最小構成には含めていません。LTX LoRAはWANと互換性がありません。
@@ -56,11 +57,25 @@ seedは比較しやすいよう固定。変化を出すときはHIGH側の`noise
 プロンプトは見た目の列挙より「何が、どちらへ、どれくらい、どう繰り返すか」を記述。例: `Locked-off camera. A steady breeze moves the fabric in continuous gentle waves. The subject remains in place. The motion completes one cycle and returns smoothly to the starting pose.`
 CFG 1ではnegativeは通常評価されません。`closed mouth, unchanged expression`など必要な状態をpositiveへ。
 
+### RIFE・AIアップスケール（2026-09-16）
+
+以前のwan-animate-runpodと同じ `rife49.pth` と `2xNomosUni_span_multijpg.safetensors` を使用。モデルの保存先・revision・サイズ・SHA256を固定し、起動時の並列ダウンロード対象に含めています。追加の環境変数は不要です。
+
+- 処理順: **VAE decode → RIFE x2（生成解像度）→ Loopのみ終端1枚除去 → SPAN x2 → 03のみモザイク → MP4**。
+- RIFEは1組ずつ推論、CUDAではFP16・ensemble OFF・コンパイルなし。終了時にGPUのRIFE重みとwarp gridを解放。CUDA OOMなら同じ組からCPU/FP32へ再試行し、ログに明記します（大幅に遅くなる可能性あり）。
+- SPANはComfyUI標準のモデル管理・タイル処理・OOM再試行を使い、1枚ずつ拡大してCPUへ戻します。4倍中間動画を作りません。
+- RIFEとSPANの`enabled`で個別にOFFにできます。**RIFEのFPS出力を保存ノードへ接続済み**なので、RIFE OFFなら保存も16 fpsへ戻ります。ノードのバイパスではなく、このスイッチを使ってください。
+- Loopの終端処理はRIFEノードだけが担当。モザイクとSave MP4の`trim_last_frame`は両方OFFにしてください。81→161→160枚、OFF時は81→80枚で、どちらも5秒です。入力画像を途中へ差し込む処理はありません。
+- 補間は動きの不連続感の改善候補ですが、生成済みの体の変形・誤った動作・ループの速度不一致を修復する保証はありません。SPANも元のディテールの完全復元を保証しません。
+- 後処理時間とRAM使用量は増えます。160枚・1440×1920のfloat32 RGBだけで約5.3 GB、モザイク等の中間バッファは別途必要。CPU RAMは引き続き64 GB以上を目安にしてください。各工程の秒数は`[dasiwa-post]`ログに出します。実GPUでの追加秒数は未計測です。
+
+RIFEは前repoと同じ固定版の純PyTorchアーキテクチャのみ同梱し、ノードパック全体・CuPy・Taichi等は追加しません。ライセンスは`custom_nodes/DaSiWa-WAN/RIFE-LICENSE.txt`。SPAN作者はHelaman、CC-BY-4.0: [モデル出典](https://openmodeldb.info/models/2x-NomosUni-span-multijpg)。
+
 ## 起動が速くなる設計
 
 - **公式PyTorch CUDA 12.8 runtime**（ベースの圧縮サイズ4.43 GB）をdigest固定。devel、Jupyter、Manager、LTX/RTX/GGUFなど不要なノードパックなし。
 - ComfyUIと依存関係をビルド時に導入。起動時pip/git/コンパイル/ComfyUI全体コピーなし。`/opt/ComfyUI`から直接起動。
-- 必須4ファイルのみ、**36,047,005,223 bytes（36.05 GB / 33.57 GiB）**。High/Low/UMT5/VAEすべてrevision・サイズ・SHA256固定。
+- 基本4ファイルは**36,047,005,223 bytes（36.05 GB / 33.57 GiB）**。後処理2ファイルは**25,806,330 bytes（約26 MB）**。6ファイル合計36,072,811,553 bytes。すべてrevision・サイズ・SHA256固定。
 - 自動モザイク用には別途 **18,846,815 bytes（約19 MB）** の検出モデルZIPを取得。SAM2などの大容量モデルは追加しません。初回展開後もZIPを検証元として保持します。
 - 大きい順に3ファイル並列、Xet高速モード。HTTP取得はaria2最大16分割、再開対応。
 - 作業先と完成先を同じファイルシステムに置き、検証後にrename。14 GBファイルをキャッシュからもう一度コピーしない。
@@ -78,19 +93,19 @@ CFG 1ではnegativeは通常評価されません。`closed mouth, unchanged exp
 - 4ステップはこの蒸留モデルの推奨値。非蒸留モデルのステップを勝手に削ったものではありません。
 - PyTorch標準SDPA。SageAttention/TeaCache/FP8-fast/追加蒸留LoRA/`--fast`/torch.compileは既定で使いません。近似計算や初回コンパイルコストを避けます。
 - UMT5をCPU固定しません。ComfyUIの自動GPU管理とoffloadを使い、毎回キャッシュを捨てる処理もありません。
-- 01/02に追加upscale/RIFE/音声生成/モザイクは入りません。03のみ生成後にモザイク。保存はMP4、H.264 CRF18・veryfast。保存前の生成解像度/フレーム数を下げません。
+- 全3本にRIFE x2 / SPAN x2、03のみその後にモザイク。音声生成はなし。保存はMP4、H.264 CRF18・veryfast。生成解像度/フレーム数を下げません。
 - VAEは通常decode。固定ComfyUIのOOM時tiled fallbackに任せます。タイル化は時間/画質特性が変わり得ます。
 
 **LTX→WANで画質が同一になる保証はありません。** ここでの方針は指定WANモデルに対して追加の画質低下策を入れないことです。GPU未接続のCIでは実生成の品質・速度は評価できません。
 
 ## 自動モザイク（03専用）
 
-同所有者のwan-animate-runpodの `WanAutoMosaicVideo` を移植。**入力画像には処理せず、VAE decode後の全フレームを検出→輪郭マスク→モザイク→MP4保存**します。追加LoRAは不要。
+同所有者のwan-animate-runpodの `WanAutoMosaicVideo` を移植。**入力画像には処理せず、RIFE・SPAN後の全フレームを検出→輪郭マスク→モザイク→MP4保存**します。補間で後から未処理のフレームを追加しません。追加LoRAは不要。
 
-- 既定は `JUST` / confidence `0.30` / IoU `0.50` / block_size `0`（短辺に応じ自動、720なら14px）/ max_gap_frames `3`。
+- 既定は `JUST` / confidence `0.30` / IoU `0.50` / block_size `0`（短辺に応じ自動、1440なら29px）/ max_gap_frames `3`（出力フレーム単位）。
 - 対象は以前と同じ `pussy,penis,testicles`。`anus`、`nipples`、断面・透視クラスは既定対象外。輪郭の少量拡張があるので、隣接領域に重なる可能性までは排除しません。
 - JUSTは検出輪郭を少量広げる方式。WIDE/SAFEは余裕のある楕円も追加。画面固定のモザイク格子により、マスク移動でタイルが泳ぐのを抑えます。
-- ループ終端の重複1枚を**先に除き**、80フレーム間で最大3フレームの短い検出抜けを継ぎ目も含め補間。Save MP4側の `trim_last_frame` はOFFのままにしてください（二重削除防止）。
+- RIFEでループ終端1枚を除いた後の160フレーム間で、最大3フレームの短い検出抜けを継ぎ目も含め補間。モザイクとSave MP4の `trim_last_frame` は**両方OFF**のままにしてください（二重削除防止）。
 - `device=auto` は生成モデルをoffloadして空きVRAMが2 GiB以上なら検出にGPUを利用。OOM時は当該フレームからCPUへ切り替え。検出を間引きません。次回生成のモデル再ロードと検出処理の時間は増え得ます。`cpu` はGPUを使わず、検出は遅くなる場合があります。
 - 処理失敗は生成エラーとして停止。未処理MP4へのフォールバック保存なし。ただし**検出ゼロは処理エラーではなく、その部分は未処理のまま**です。検出漏れ・誤検出があるので出力全体の目視確認は必要です。正確な範囲や完全な隠蔽は保証しません。
 
@@ -116,7 +131,7 @@ python -m unittest discover -s tests -v
 docker build -t dasiwa-wan:test .
 ```
 
-Docker buildは実aria2によるHTTP取得・配置の回帰試験に加えて、実際のComfyUIをCPUで起動して3本のworkflowのノード・入力・接続型を照合し、4枚のテスト画像→モザイクノード（終端除去）→MP4保存→3枚のdecodeまで確認します。CIにはCivitai認証情報がないため、**YOLO11s-segのランダム重みで保存・読み込み・CPU推論を試験し、配布検出モデルの精度は試験しません**。合成マスクで輪郭外不変・全フレーム処理・疑似GPU OOM→CPU再試行・エラー時停止を別途検証。公式検出重みの実読み込み検査はPod起動時に実行します。WAN重みのロード・GPU推論・生成品質・実速度はCI未検証です。
+Docker buildは実aria2によるHTTP取得・配置の回帰試験に加えて、実際のComfyUIをCPUで起動して3本のworkflowのノード・入力・接続型を照合します。**実際の固定RIFE/SPAN重み**を一時取得し、4枚→補間・拡大→モザイク→MP4保存→6枚/32 fps/128×128のdecodeを試験。後処理OFFで3枚/16 fps/64×64、通常I2Vで7枚/32 fpsも試験します。テスト重みは同じDocker RUN内で削除し、配布イメージに残しません。CIにはCivitai認証情報がないため、**YOLO11s-segはランダム重みで保存・読み込み・CPU推論を試験し、配布検出モデルの精度は試験しません**。合成マスクで輪郭外不変・全フレーム処理・疑似GPU OOM→CPU再試行・エラー時停止を別途検証。公式検出重みの実読み込み検査はPod起動時に実行します。WAN重みのロード・GPU推論・生成品質・実速度はCI未検証です。
 
 コード/テンプレート更新は依存関係レイヤーを再インストールせずにビルド可能。新しい公開タグは`wan22-v9-cu128`と`wan22-v9-cu128-sha-<full commit>`。既存のLTXタグは上書きしません。
 旧LTXデータを`/workspace/ComfyUI`から削除する処理はありません。新WANは`/workspace/wan22`を利用し、編集済みの配布workflowはconfig内に退避してから更新します。
@@ -130,4 +145,5 @@ Docker buildは実aria2によるHTTP取得・配置の回帰試験に加えて�
 - [HF Xetと環境変数](https://huggingface.co/docs/huggingface_hub/en/package_reference/environment_variables)
 - [aria2のinput-fileと保存名指定](https://aria2.github.io/manual/en/html/aria2c.html#cmdoption-o)
 - [固定ComfyUI WANノード](https://github.com/Comfy-Org/ComfyUI/blob/a7b1d39d342d102f305797fb5ba12dc304d9c1f5/comfy_extras/nodes_wan.py)
+- [固定RIFEアーキテクチャ（MIT）](https://github.com/Fannovel16/ComfyUI-Frame-Interpolation/blob/26545cc2dd95bc3d27f056016300673bdeee78f5/vfi_models/rife/rife_arch.py)（ローカル修正: warp gridのdevice/dtypeを入力に追従。推論式は変更なし）
 - GPU診断/状態画面とその回帰テストは同所有者のwan-animate-runpod `f63af08`から移植。

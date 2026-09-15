@@ -1,4 +1,4 @@
-"""Deterministic UI + API workflows. Native WAN; one tiny video saver extension."""
+"""Deterministic UI/API workflows: native WAN -> RIFE -> SPAN -> mosaic -> MP4."""
 import argparse
 import copy
 import json
@@ -54,48 +54,51 @@ def build(loop=False):
         values = {"add_noise": noise, "noise_seed": 123456789, "steps": 4, "cfg": 1.0, "sampler_name": "euler", "scheduler": "simple", "start_at_step": start, "end_at_step": end, "return_with_leftover_noise": leftover}
         add(i, "KSamplerAdvanced", title, [x, 650], [440, 390], values, [("LATENT", "LATENT")], [noise, 123456789, "fixed", 4, 1.0, "euler", "simple", start, end, leftover], {"model": "MODEL", "positive": "CONDITIONING", "negative": "CONDITIONING", "latent_image": "LATENT"})
     add(13, "VAEDecode", "06 · Decode · native OOM fallback", [1560, 1120], [440, 90], {}, [("IMAGE", "IMAGE")], [], {"samples": "LATENT", "vae": "VAE"})
+    add(17, "DaSiWaRIFE2x", "07 · RIFE 4.9 · 16 -> 32 FPS" + (" · loop trim" if loop else ""), [1560, 1300], [440, 220], {"enabled": True, "source_fps": 16.0, "loop": loop}, [("IMAGE", "IMAGE"), ("output_fps", "FLOAT")], [True, 16.0, loop], {"images": "IMAGE"})
+    add(18, "DaSiWaUpscale2x", "08 · 2x NomosUni SPAN · 1440 x 1920", [2060, 1300], [440, 150], {"enabled": True}, [("IMAGE", "IMAGE")], [True], {"images": "IMAGE"})
     prefix = "DaSiWa/loop" if loop else "DaSiWa/i2v"
-    add(14, "DaSiWaSaveMP4", "07 · Save MP4 · " + ("80 frames = 5 seconds" if loop else "81 frames / 16 FPS"), [1560, 1300], [440, 360], {"fps": 16.0, "filename_prefix": prefix, "crf": 18, "trim_last_frame": loop}, [], [16.0, prefix, 18, loop], {"images": "IMAGE"})
-    for a, slot, b, name in [(2,0,4,"model"),(3,0,5,"model"),(6,0,7,"clip"),(7,0,8,"conditioning"),(7,0,10,"positive"),(8,0,10,"negative"),(9,0,10,"vae"),(1,0,10,"start_image"),(4,0,11,"model"),(5,0,12,"model"),(10,0,11,"positive"),(10,1,11,"negative"),(10,2,11,"latent_image"),(10,0,12,"positive"),(10,1,12,"negative"),(11,0,12,"latent_image"),(12,0,13,"samples"),(9,0,13,"vae"),(13,0,14,"images")]:
+    add(14, "DaSiWaSaveMP4", "09 · Save MP4 · " + ("160 frames = 5 seconds" if loop else "161 frames / 32 FPS"), [2560, 1300], [440, 360], {"fps": 32.0, "filename_prefix": prefix, "crf": 18, "trim_last_frame": False}, [], [32.0, prefix, 18, False], {"images": "IMAGE", "fps": "FLOAT"})
+    canvas[-1]["inputs"][1]["widget"] = {"name": "fps"}
+    for a, slot, b, name in [(2,0,4,"model"),(3,0,5,"model"),(6,0,7,"clip"),(7,0,8,"conditioning"),(7,0,10,"positive"),(8,0,10,"negative"),(9,0,10,"vae"),(1,0,10,"start_image"),(4,0,11,"model"),(5,0,12,"model"),(10,0,11,"positive"),(10,1,11,"negative"),(10,2,11,"latent_image"),(10,0,12,"positive"),(10,1,12,"negative"),(11,0,12,"latent_image"),(12,0,13,"samples"),(9,0,13,"vae"),(13,0,17,"images"),(17,0,18,"images"),(18,0,14,"images"),(17,1,14,"fps")]:
         link(a, slot, b, name)
     if loop:
         link(1, 0, 10, "end_image")
-    note = "Start: upload an image, describe motion, then Run.\n720 x 960 / 81 frames / 16 FPS / 4 TOTAL steps (2 high + 2 low).\nNative checkpoint precision; do not force fp8_fast or add Lightning/LightX2V.\nThe same seed is kept for comparisons; change HIGH noise_seed for variation.\nCFG=1 does not evaluate a negative prompt. No audio/upscale/interpolation pass."
+    note = "Start: upload an image, describe motion, then Run.\nGenerate: 720 x 960 / 81 frames / 16 FPS / 4 TOTAL steps (2 high + 2 low).\nFinish: RIFE 4.9 x2 -> SPAN x2 -> 1440 x 1920 / 32 FPS MP4.\nBoth postprocess nodes have an enabled switch. RIFE OFF automatically saves at 16 FPS.\nDo NOT bypass the RIFE node or disconnect its FPS output; use enabled=false instead.\nNative checkpoint precision; do not force fp8_fast or add Lightning/LightX2V.\nThe same seed is kept for comparisons; change HIGH noise_seed for variation.\nCFG=1 does not evaluate a negative prompt. No audio. Postprocessing adds time/RAM."
     if loop:
-        note += "\nLoop: the image CONDITIONS both ends; no source image is pasted into the result.\nThe repeated endpoint is dropped (80 frames / 16 FPS = 5s).\nA seamless motion/velocity match is NOT guaranteed. Use cyclic motion and a fixed camera."
-    canvas.append({"id": 15, "type": "Note", "pos": [40, 1120], "size": [930, 300], "flags": {}, "order": 14, "mode": 0, "properties": {}, "widgets_values": [note], "title": "READ ME · Quality / speed / loop boundaries"})
+        note += "\nLoop: the image CONDITIONS both ends; no source image is pasted into the result.\nRIFE handles the final interval, then drops ONLY the endpoint: 160 frames / 32 FPS = 5s.\nKeep trim_last_frame OFF in BOTH the mosaic and MP4 saver.\nA seamless motion/velocity match is NOT guaranteed. Use cyclic motion and a fixed camera."
+    canvas.append({"id": 15, "type": "Note", "pos": [40, 1120], "size": [930, 480], "flags": {}, "order": len(canvas), "mode": 0, "properties": {}, "widgets_values": [note], "title": "READ ME · Quality / speed / loop boundaries"})
     # Unconnected optional sockets are absent from the API, not empty strings.
-    ui = {"id": str(uuid.uuid5(uuid.NAMESPACE_URL, "grawthings/dasiwa/v9/" + str(loop))), "revision": 0, "last_node_id": 15, "last_link_id": len(connections), "nodes": canvas, "links": connections, "groups": [], "config": {}, "extra": {"ds": {"scale": 0.55, "offset": [50, 50]}}, "version": 0.4}
+    ui = {"id": str(uuid.uuid5(uuid.NAMESPACE_URL, "grawthings/dasiwa/v9/" + str(loop))), "revision": 1, "last_node_id": 18, "last_link_id": len(connections), "nodes": canvas, "links": connections, "groups": [], "config": {}, "extra": {"ds": {"scale": 0.45, "offset": [50, 50]}}, "version": 0.4}
     return ui, graph
 
 
 def build_mosaic():
-    # Derive a third workflow without changing the two established workflows.
+    # Same inference and postprocessing; mosaic ONLY after RIFE and upscale.
     ui, graph = build(True)
     ui["id"] = str(uuid.uuid5(uuid.NAMESPACE_URL, "grawthings/dasiwa/v9/loop-mosaic"))
     settings = {"coverage_preset": "JUST", "confidence": 0.30, "iou_threshold": 0.50,
                 "block_size": 0, "max_gap_frames": 3, "target_classes": "pussy,penis,testicles",
-                "device": "auto", "trim_last_frame": True}
-    graph["16"] = {"class_type": "DaSiWaAutoMosaic", "inputs": {"images": ["13", 0], **settings},
-                   "_meta": {"title": "07 · Auto Mosaic · JUST · output only"}}
+                "device": "auto", "trim_last_frame": False}
+    graph["16"] = {"class_type": "DaSiWaAutoMosaic", "inputs": {"images": ["18", 0], **settings},
+                   "_meta": {"title": "09 · Auto Mosaic · JUST · output only"}}
     graph["14"]["inputs"].update(images=["16", 0], trim_last_frame=False, filename_prefix="DaSiWa/loop_mosaic")
-    old_link = next(link for link in ui["links"] if link[1] == 13 and link[3] == 14)
+    old_link = next(link for link in ui["links"] if link[1] == 18 and link[3] == 14)
     old_link[3] = 16
     new_id = ui["last_link_id"] + 1
     ui["links"].append([new_id, 16, 0, 14, 0, "IMAGE"])
-    ui["nodes"].append({"id": 16, "type": "DaSiWaAutoMosaic", "title": "07 · Auto Mosaic · JUST · output only",
-        "pos": [1560, 1300], "size": [440, 350], "flags": {}, "order": 13, "mode": 0,
+    ui["nodes"].append({"id": 16, "type": "DaSiWaAutoMosaic", "title": "09 · Auto Mosaic · JUST · output only",
+        "pos": [2560, 1300], "size": [440, 350], "flags": {}, "order": 16, "mode": 0,
         "inputs": [{"name": "images", "type": "IMAGE", "link": old_link[0]}],
         "outputs": [{"name": "mosaicked_images", "type": "IMAGE", "links": [new_id]}],
         "properties": {"Node name for S&R": "DaSiWaAutoMosaic"}, "widgets_values": list(settings.values())})
     saver = next(node for node in ui["nodes"] if node["id"] == 14)
-    saver.update(pos=[2060, 1300], title="08 · Save mosaicked MP4 · 80 frames / 5s", order=14)
+    saver.update(pos=[3060, 1300], title="10 · Save mosaicked MP4 · 160 frames / 5s", order=17)
     saver["inputs"][0]["link"] = new_id
-    saver["widgets_values"] = [16.0, "DaSiWa/loop_mosaic", 18, False]
+    saver["widgets_values"] = [32.0, "DaSiWa/loop_mosaic", 18, False]
     note = next(node for node in ui["nodes"] if node["id"] == 15)
-    note["size"] = [930, 440]
-    note["widgets_values"][0] += "\n\nAUTO MOSAIC: generated frames only; source image is untouched.\nThe mosaic node removes the repeated endpoint BEFORE circular gap filling.\nDo NOT enable trim_last_frame again in Save MP4.\nJUST contours / confidence 0.30 / automatic tile size / max gap 3.\nDefault targets exclude anus and nipples. Review the entire output: detection is not guaranteed.\nErrors stop the graph; no unprocessed MP4 fallback. Anime detector, not for realistic footage."
-    ui.update(last_node_id=16, last_link_id=new_id)
+    note["size"] = [930, 680]
+    note["widgets_values"][0] += "\n\nAUTO MOSAIC: output only, AFTER RIFE and SPAN. Source image is untouched.\nRIFE already removed the repeated endpoint BEFORE circular gap filling.\nKeep trim_last_frame OFF in mosaic AND Save MP4.\nJUST contours / confidence 0.30 / automatic tile size / max gap 3 output frames.\nDefault targets exclude anus and nipples. Review the entire output: detection is not guaranteed.\nErrors stop the graph; no unprocessed MP4 fallback. Anime detector, not for realistic footage."
+    ui.update(last_node_id=18, last_link_id=new_id)
     return ui, graph
 
 
