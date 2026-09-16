@@ -57,7 +57,7 @@ def main():
             second = pack.DaSiWaLoraLow.execute(first, enabled_1=True, lora_1="low-test.safetensors", strength_1=.25).result[0]
             key = "diffusion_model.linear.weight"
             assert len(first.patches[key]) == 1 and len(second.patches[key]) == 2
-            second.patch_model(device_to=torch.device("cpu"), patch_weights=True)
+            second.patch_model(device_to=torch.device("cpu"), force_patch_weights=True)
             expected = torch.eye(4) + .75 * (up @ down)
             assert torch.allclose(model.diffusion_model.linear.weight, expected)
             sample = torch.arange(4, dtype=torch.float32)[None]
