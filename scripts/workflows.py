@@ -37,6 +37,12 @@ def build(loop=False):
     add(1, "LoadImage", "01 · Upload image", [40, 80], [440, 490], {"image": "upload-your-image.png"}, [("IMAGE", "IMAGE"), ("MASK", "MASK")], ["upload-your-image.png", "image"])
     add(2, "UNETLoader", "HIGH · SynthSeduction v9", [560, 80], [440, 90], {"unet_name": assets["high"], "weight_dtype": "default"}, [("MODEL", "MODEL")], [assets["high"], "default"])
     add(3, "UNETLoader", "LOW · SynthSeduction v9", [1060, 80], [440, 90], {"unet_name": assets["low"], "weight_dtype": "default"}, [("MODEL", "MODEL")], [assets["low"], "default"])
+    for node_id, stage, x in ((19, "High", 560), (20, "Low", 1060)):
+        values = {}
+        for slot in range(1, 4):
+            values.update({f"enabled_{slot}": False, f"lora_{slot}": "None", f"strength_{slot}": 1.0})
+        add(node_id, "DaSiWaLora" + stage, stage.upper() + " LoRA · Optional / default OFF", [x, 220], [440, 340],
+            values, [("MODEL", "MODEL")], list(values.values()), {"model": "MODEL"})
     add(4, "ModelSamplingSD3", "HIGH · Shift 5", [560, 220], [440, 90], {"shift": 5.0}, [("MODEL", "MODEL")], [5.0], {"model": "MODEL"})
     add(5, "ModelSamplingSD3", "LOW · Shift 5", [1060, 220], [440, 90], {"shift": 5.0}, [("MODEL", "MODEL")], [5.0], {"model": "MODEL"})
     add(6, "CLIPLoader", "UMT5 · GPU auto/offload", [40, 650], [440, 120], {"clip_name": assets["text"], "type": "wan", "device": "default"}, [("CLIP", "CLIP")], [assets["text"], "wan", "default"])
@@ -59,16 +65,23 @@ def build(loop=False):
     prefix = "DaSiWa/loop" if loop else "DaSiWa/i2v"
     add(14, "DaSiWaSaveMP4", "09 · Save MP4 · " + ("160 frames = 5 seconds" if loop else "161 frames / 32 FPS"), [2560, 1300], [440, 360], {"fps": 32.0, "filename_prefix": prefix, "crf": 18, "trim_last_frame": False}, [], [32.0, prefix, 18, False], {"images": "IMAGE", "fps": "FLOAT"})
     canvas[-1]["inputs"][1]["widget"] = {"name": "fps"}
-    for a, slot, b, name in [(2,0,4,"model"),(3,0,5,"model"),(6,0,7,"clip"),(7,0,8,"conditioning"),(7,0,10,"positive"),(8,0,10,"negative"),(9,0,10,"vae"),(1,0,10,"start_image"),(4,0,11,"model"),(5,0,12,"model"),(10,0,11,"positive"),(10,1,11,"negative"),(10,2,11,"latent_image"),(10,0,12,"positive"),(10,1,12,"negative"),(11,0,12,"latent_image"),(12,0,13,"samples"),(9,0,13,"vae"),(13,0,17,"images"),(17,0,18,"images"),(18,0,14,"images"),(17,1,14,"fps")]:
+    for a, slot, b, name in [(2,0,19,"model"),(3,0,20,"model"),(19,0,4,"model"),(20,0,5,"model"),(6,0,7,"clip"),(7,0,8,"conditioning"),(7,0,10,"positive"),(8,0,10,"negative"),(9,0,10,"vae"),(1,0,10,"start_image"),(4,0,11,"model"),(5,0,12,"model"),(10,0,11,"positive"),(10,1,11,"negative"),(10,2,11,"latent_image"),(10,0,12,"positive"),(10,1,12,"negative"),(11,0,12,"latent_image"),(12,0,13,"samples"),(9,0,13,"vae"),(13,0,17,"images"),(17,0,18,"images"),(18,0,14,"images"),(17,1,14,"fps")]:
         link(a, slot, b, name)
     if loop:
         link(1, 0, 10, "end_image")
     note = "Start: upload an image, describe motion, then Run.\nGenerate: 720 x 960 / 81 frames / 16 FPS / 4 TOTAL steps (2 high + 2 low).\nFinish: RIFE 4.9 x2 -> SPAN x2 -> 1440 x 1920 / 32 FPS MP4.\nBoth postprocess nodes have an enabled switch. RIFE OFF automatically saves at 16 FPS.\nDo NOT bypass the RIFE node or disconnect its FPS output; use enabled=false instead.\nNative checkpoint precision; do not force fp8_fast or add Lightning/LightX2V.\nThe same seed is kept for comparisons; change HIGH noise_seed for variation.\nCFG=1 does not evaluate a negative prompt. No audio. Postprocessing adds time/RAM."
     if loop:
         note += "\nLoop: the image CONDITIONS both ends; no source image is pasted into the result.\nRIFE handles the final interval, then drops ONLY the endpoint: 160 frames / 32 FPS = 5s.\nKeep trim_last_frame OFF in BOTH the mosaic and MP4 saver.\nA seamless motion/velocity match is NOT guaranteed. Use cyclic motion and a fixed camera."
+    note += "\n\nOPTIONAL LoRA: choose a file, then enable that slot. HIGH/LOW lists are stage-filtered.\nAll 3 slots per stage start OFF / None; OFF does not load or patch any LoRA.\n1.0 is a neutral control default, NOT an author-recommended optimum.\nDo not reuse old strengths blindly. WAN 2.1 Low files are experimental transfers.\nNo LightX2V/Lightning: this checkpoint is already distilled.\nDownload profile: LORA_PROFILE=all (21 files), core (5), none (0).\nOnly installed catalogue files appear; refresh/reload after adding files."
     canvas.append({"id": 15, "type": "Note", "pos": [40, 1120], "size": [930, 480], "flags": {}, "order": len(canvas), "mode": 0, "properties": {}, "widgets_values": [note], "title": "READ ME · Quality / speed / loop boundaries"})
+    # Make room for both stacks without overlapping prompts/samplers/post nodes.
+    for node in canvas:
+        if node["id"] not in (1, 2, 3, 19, 20):
+            node["pos"][1] += 400
+        if node["id"] == 15:
+            node["size"][1] = 700
     # Unconnected optional sockets are absent from the API, not empty strings.
-    ui = {"id": str(uuid.uuid5(uuid.NAMESPACE_URL, "grawthings/dasiwa/v9/" + str(loop))), "revision": 1, "last_node_id": 18, "last_link_id": len(connections), "nodes": canvas, "links": connections, "groups": [], "config": {}, "extra": {"ds": {"scale": 0.45, "offset": [50, 50]}}, "version": 0.4}
+    ui = {"id": str(uuid.uuid5(uuid.NAMESPACE_URL, "grawthings/dasiwa/v9/" + str(loop))), "revision": 2, "last_node_id": 20, "last_link_id": len(connections), "nodes": canvas, "links": connections, "groups": [], "config": {}, "extra": {"ds": {"scale": 0.4, "offset": [50, 50]}}, "version": 0.4}
     return ui, graph
 
 
@@ -87,18 +100,18 @@ def build_mosaic():
     new_id = ui["last_link_id"] + 1
     ui["links"].append([new_id, 16, 0, 14, 0, "IMAGE"])
     ui["nodes"].append({"id": 16, "type": "DaSiWaAutoMosaic", "title": "09 · Auto Mosaic · JUST · output only",
-        "pos": [2560, 1300], "size": [440, 350], "flags": {}, "order": 16, "mode": 0,
+        "pos": [2560, 1700], "size": [440, 350], "flags": {}, "order": 18, "mode": 0,
         "inputs": [{"name": "images", "type": "IMAGE", "link": old_link[0]}],
         "outputs": [{"name": "mosaicked_images", "type": "IMAGE", "links": [new_id]}],
         "properties": {"Node name for S&R": "DaSiWaAutoMosaic"}, "widgets_values": list(settings.values())})
     saver = next(node for node in ui["nodes"] if node["id"] == 14)
-    saver.update(pos=[3060, 1300], title="10 · Save mosaicked MP4 · 160 frames / 5s", order=17)
+    saver.update(pos=[3060, 1700], title="10 · Save mosaicked MP4 · 160 frames / 5s", order=19)
     saver["inputs"][0]["link"] = new_id
     saver["widgets_values"] = [32.0, "DaSiWa/loop_mosaic", 18, False]
     note = next(node for node in ui["nodes"] if node["id"] == 15)
-    note["size"] = [930, 680]
+    note["size"] = [930, 900]
     note["widgets_values"][0] += "\n\nAUTO MOSAIC: output only, AFTER RIFE and SPAN. Source image is untouched.\nRIFE already removed the repeated endpoint BEFORE circular gap filling.\nKeep trim_last_frame OFF in mosaic AND Save MP4.\nJUST contours / confidence 0.30 / automatic tile size / max gap 3 output frames.\nDefault targets exclude anus and nipples. Review the entire output: detection is not guaranteed.\nErrors stop the graph; no unprocessed MP4 fallback. Anime detector, not for realistic footage."
-    ui.update(last_node_id=18, last_link_id=new_id)
+    ui.update(last_node_id=20, last_link_id=new_id)
     return ui, graph
 
 

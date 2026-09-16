@@ -47,7 +47,32 @@ ComfyUIのworkflow一覧 → `DaSiWa-WAN`。
 3本とも後処理は **RIFE 4.9の2倍補間 → 2x NomosUni SPAN → 1440×1920・32 fps保存**。通常I2Vは161枚（約5.03秒）、Loopは160枚（5秒）。生成モデル・解像度・ステップは変更していません。
 seedは比較しやすいよう固定。変化を出すときはHIGH側の`noise_seed`を変えます。
 
-モデルには高速化蒸留が内蔵されています。**LightX2V・Lightningなどの高速化LoRAをさらに重ねないでください。** 追加の概念LoRAはこの最小構成には含めていません。LTX LoRAはWANと互換性がありません。
+モデルには高速化蒸留が内蔵されています。**この標準構成ではLightX2V・Lightningなどの高速化LoRAをさらに重ねません。** 追加の概念LoRAは下記の任意スロットから選択できます。LTX LoRAはWANと互換性がありません。
+
+### 前WANの追加LoRA（2026-09-17）
+
+3本のworkflowに **HIGH LoRA / LOW LoRA 各3枠**を追加。既存の3本を更新し、似た派生workflowは増やしません。旧ブラウザータブには古いグラフが残ることがあるため、更新後は `DaSiWa-WAN` 一覧から開き直してください。
+
+- 各枠の `lora_1` 等でファイルを選び、対応する `enabled_1` 等をON。`strength_1` 等で強度を調節します。
+- **初期状態は全枠OFF / None**。OFFまたは強度0ではファイルを読み込まず、モデルのclone/patchもしません。4 steps / CFG 1 / Shift 5 / RIFE / SPAN / モザイクの設定は維持。
+- 選択肢は配置済みかつ該当High/Low側の既知ファイルだけ。windはLow限定。取り違え・同一ファイルの二重選択・ONなのにNone・モデルキー一致ゼロ・通常LoRAの形状不一致はエラーで停止します。
+- 強度1.0はUIの中立な初期値で、作者推奨値や最適値ではありません。以前の強度を引き継がず、一組ずつOFFと比較してください。
+- iroiroのLow側5本は **WAN 2.1 I2V 720p 14B用を転用する試験枠**。ログにexperimentalと表示します。DaSiWaでの生成品質・ループ適性・全21本の実GPU互換性は未検証です。
+- ComfyUI標準の可逆モデルパッチとして適用し、UMT5には適用しません。永久merge・追加の生LoRAキャッシュなし。ON時にはパッチ用RAM/VRAMと読み込み時間が増え得ます。
+
+| `LORA_PROFILE` | ダウンロード対象 | 追加サイズ |
+|---|---|---:|
+| `all`（既定） | 前WAN loop-allの21本：基本5本＋追加3組＋iroiro High/Low 5組 | 7.93 GB |
+| `core` | NSFW-22 High/Low、SmoothXXXAnimation High/Low、wind Lowの5本 | 2.15 GB |
+| `none` | 追加LoRAなし。選択欄は残り、OFFで実行可能 | 0 |
+
+取得設定とON/OFFは独立です。環境変数なしでも`all`を取得。起動時の取得量を減らすなら `LORA_PROFILE=core` または `none`。保存済みファイルはprofile変更で削除せず、該当側の選択肢に残します。追加サイズはallが7,932,101,336 bytes、coreが2,147,456,040 bytes。allは本体/後処理と合わせ **44.00 GB**、モザイク検出器は別途約19 MB。80 GB PodローカルVolumeの目安は変更なしですが、出力や古いモデルを溜める場合は空き容量に注意してください。
+
+取得先・サイズ・SHA256は`config/loras.json`で前WANと同一ファイルを指定。HFはXet優先、失敗時aria2。Civitai配布4本はmodelVersion/fileIdを指定してaria2。既存の`DOWNLOAD_WORKERS`を共有し、別ダウンローダーを多重起動しません。重みはGit/GHCRに含めず、起動時pip/git/追加ノードパック導入なし。
+
+`HF_TOKEN`には `uwgm/nikke-civitai-backup` の読取権限、`CIVITAI_API_TOKEN`には追加LoRAの取得権限も必要です。非公開バックアップ6本はビルド環境からrevisionを取得できないため、起動時に`main`のHEADから**サイズ/SHA256一致を確認してcommitを固定**し転送します。同名ファイルの差し替えは停止し、無断で別重みに更新しません。他のHFはrevisionも固定済み。`MODEL_SOURCE=hf`と`LORA_PROFILE=all`はCivitai専用4本を取得できず停止するため、通常は `MODEL_SOURCE=auto` を使用してください。
+
+全対象のアクセス・容量確認後に転送し、取得後はSHA256とsafetensorsヘッダー検証後に正式配置。`DOWNLOAD_MODELS=0`も選択profile全ファイルを検証します。未取得ファイルを成功扱いで隠しません。認証エラー時は権限を直すか、必要範囲にprofileを絞ってください。
 
 ### ループの限界
 
@@ -137,6 +162,8 @@ Docker buildは実aria2によるHTTP取得・配置の回帰試験に加えて�
 旧LTXデータを`/workspace/ComfyUI`から削除する処理はありません。新WANは`/workspace/wan22`を利用し、編集済みの配布workflowはconfig内に退避してから更新します。
 
 ## 根拠・来歴
+
+LoRA追加のDocker試験は合成LoRAと小さなCPUモデルを使い、実ComfyUI/V3ノードでclone→2段パッチ→forward→解除、OFF時の入力維持、不正形状の停止を検証します。実配布LoRA21本やWAN 14BのGPU生成品質を検証したという意味ではありません。
 
 - [指定SeaArtアーカイブ](https://civarchive.com/seaart/models/8a74c3d7c313ee87c8476ee1b858bf39/versions/7dadb3c56a80037da8eaeb7f2cd0042b)
 - [作者公式モデル・推奨sampler・利用条件](https://huggingface.co/darksidewalker/DaSiWa-WAN2.2-I2V)

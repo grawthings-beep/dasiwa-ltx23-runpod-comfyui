@@ -28,12 +28,15 @@ RUN python -m pip install ultralytics==8.4.104 opencv-python==4.12.0.88
 COPY custom_nodes/DaSiWa-WAN /opt/ComfyUI/custom_nodes/DaSiWa-WAN
 COPY scripts /opt/wan22/scripts
 COPY config/models.json /opt/wan22/config/models.json
+COPY config/loras.json /opt/wan22/config/loras.json
+COPY config/loras.json /opt/ComfyUI/custom_nodes/DaSiWa-WAN/loras.json
 COPY workflows /opt/wan22/workflows
 COPY api /opt/wan22/api
 COPY tests /opt/wan22/tests
 RUN python /opt/wan22/scripts/gpu_preflight.py --stack-only \
     && python -m unittest discover -s /opt/wan22/tests -p test_aria_download.py -v \
     && python /opt/wan22/scripts/mosaic_smoke.py \
+    && python /opt/wan22/scripts/lora_smoke.py \
     && python /opt/wan22/scripts/container_smoke.py
 ARG BUNDLE_REVISION=unknown
 ENV BUNDLE_REVISION=${BUNDLE_REVISION}

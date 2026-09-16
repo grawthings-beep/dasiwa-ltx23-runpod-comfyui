@@ -44,6 +44,6 @@ jobs:
             ghcr.io/${{ github.repository }}:wan22-v9-cu128-sha-${{ github.sha }}
       - name: Report validation scope
         run: |
-          echo 'Real aria2, CPU startup, workflow schemas, real RIFE/SPAN weights, mosaic and MP4 output/FPS/trim smoke: passed.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Real aria2, CPU startup, workflow schemas, synthetic LoRA patch/forward/unpatch, real RIFE/SPAN weights, mosaic and MP4 output/FPS/trim smoke: passed.' >> "$GITHUB_STEP_SUMMARY"
           echo 'GPU generation, visual quality, RunPod cold-start timing: NOT tested by this runner.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Image digest: ${{ steps.build.outputs.digest }}' >> "$GITHUB_STEP_SUMMARY"

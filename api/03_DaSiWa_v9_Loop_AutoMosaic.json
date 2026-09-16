@@ -28,12 +28,54 @@
       "title": "LOW · SynthSeduction v9"
     }
   },
+  "19": {
+    "class_type": "DaSiWaLoraHigh",
+    "inputs": {
+      "enabled_1": false,
+      "lora_1": "None",
+      "strength_1": 1.0,
+      "enabled_2": false,
+      "lora_2": "None",
+      "strength_2": 1.0,
+      "enabled_3": false,
+      "lora_3": "None",
+      "strength_3": 1.0,
+      "model": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "HIGH LoRA · Optional / default OFF"
+    }
+  },
+  "20": {
+    "class_type": "DaSiWaLoraLow",
+    "inputs": {
+      "enabled_1": false,
+      "lora_1": "None",
+      "strength_1": 1.0,
+      "enabled_2": false,
+      "lora_2": "None",
+      "strength_2": 1.0,
+      "enabled_3": false,
+      "lora_3": "None",
+      "strength_3": 1.0,
+      "model": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "LOW LoRA · Optional / default OFF"
+    }
+  },
   "4": {
     "class_type": "ModelSamplingSD3",
     "inputs": {
       "shift": 5.0,
       "model": [
-        "2",
+        "19",
         0
       ]
     },
@@ -46,7 +88,7 @@
     "inputs": {
       "shift": 5.0,
       "model": [
-        "3",
+        "20",
         0
       ]
     },

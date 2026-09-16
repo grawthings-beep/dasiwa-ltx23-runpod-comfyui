@@ -47,17 +47,40 @@ def load_manifest(path):
     seen = set()
     for a in assets:
         safe_path(Path.cwd(), a["path"])
-        safe_path(Path.cwd(), a["file"])
+        is_lora = a["path"].startswith("loras/")
+        if a.get("repo"):
+            safe_path(Path.cwd(), a["file"])
+            pinned = re.fullmatch(r"[0-9a-f]{40}", a.get("revision", ""))
+            # Private user-provided backups cannot be resolved without their
+            # token at build time. At boot, verify SHA/size and freeze the HEAD
+            # commit in the transfer plan before fetching any payload.
+            if not pinned and not (is_lora and a.get("revision") == "main"):
+                raise ValueError("HF models must have a pinned revision")
+        elif not is_lora or not all(isinstance(a.get(k), int) and a[k] > 0 for k in ("civitai_version", "civitai_file")):
+            raise ValueError("Model needs a verified HF or exact Civitai source")
         if a["id"] in seen or not re.fullmatch(r"[a-z0-9_-]+", a["id"]):
             raise ValueError("Duplicate or invalid asset id")
         seen.add(a["id"])
         if a.get("format", "safetensors") not in ("safetensors", "torch-state-dict"):
             raise ValueError("Unsupported model format")
-        if not re.fullmatch(r"[0-9a-f]{64}", a["sha256"]) or not re.fullmatch(r"[0-9a-f]{40}", a["revision"]) or a["size"] <= 0:
-            raise ValueError("Models must have pinned revision, size and SHA256")
+        if not re.fullmatch(r"[0-9a-f]{64}", a["sha256"]) or a["size"] <= 0:
+            raise ValueError("Models must have exact size and SHA256")
+        if is_lora and (a.get("stage") not in ("high", "low") or a.get("profile") not in ("core", "extra")):
+            raise ValueError("LoRA stage/profile is invalid")
     if len({a["path"] for a in assets}) != len(assets):
         raise ValueError("Duplicate model destination")
     return sorted(assets, key=lambda a: -a["size"])
+
+
+def selected_manifest(base, loras, profile="all"):
+    if profile not in ("none", "core", "all"):
+        raise ValueError("LORA_PROFILE must be none, core or all")
+    assets = load_manifest(base)
+    if profile != "none":
+        assets += [a for a in load_manifest(loras) if profile == "all" or a["profile"] == "core"]
+    if len({a["id"] for a in assets}) != len(assets) or len({a["path"] for a in assets}) != len(assets):
+        raise ValueError("Duplicate base/LoRA asset")
+    return {"schema_version": 1, "assets": assets}
 
 
 def digest(path):
@@ -161,14 +184,18 @@ class SafeRedirect(urllib.request.HTTPRedirectHandler):
 
 
 def resolve_source(asset, source="auto"):
-    """Only official HF/Civitai. HEAD all assets before starting payload transfers."""
+    """Identity-check HF / exact Civitai files before starting payload transfers."""
     hf_error = None
-    if source != "civitai" or not asset.get("civitai_version"):
+    if asset.get("repo") and (source != "civitai" or not asset.get("civitai_version")):
         from huggingface_hub import get_hf_file_metadata, hf_hub_url
         try:
             meta = get_hf_file_metadata(hf_hub_url(asset["repo"], asset["file"], revision=asset["revision"]), token=token("HF_TOKEN") or False, timeout=20)
             if meta.size != asset["size"] or (meta.etag or "").strip('"') != asset["sha256"]:
                 raise ValueError("Official HF file identity differs from pinned model")
+            if asset["revision"] == "main":
+                if not re.fullmatch(r"[0-9a-f]{40}", meta.commit_hash or ""):
+                    raise ValueError("HF did not provide an immutable commit for the LoRA")
+                return {"engine": "hf", "revision": meta.commit_hash}
             return {"engine": "hf"}
         except ValueError:
             raise
@@ -176,6 +203,8 @@ def resolve_source(asset, source="auto"):
             hf_error = type(exc).__name__  # Never print credential-bearing URLs.
             if source == "hf" or not asset.get("civitai_version"):
                 raise RuntimeError(f"{asset['id']}: HF access failed ({hf_error}). Check HF_TOKEN and accept the author's model access conditions.") from None
+    if source == "hf" and not asset.get("repo"):
+        raise RuntimeError(f"{asset['id']}: this LoRA is Civitai-only; use MODEL_SOURCE=auto or LORA_PROFILE=core/none")
     key = token("CIVITAI_API_TOKEN") or token("CIVITAI_TOKEN")
     if not key:
         raise RuntimeError(f"{asset['id']}: official HF access unavailable ({hf_error}); set an authorized HF_TOKEN or CIVITAI_API_TOKEN. No weights downloaded.")
@@ -232,14 +261,17 @@ def transfer(asset, plan, root, connections):
     engine = plan["engine"]
     print(f"DOWNLOAD {asset['id']} engine={engine} size={asset['size']/1e9:.2f} GB", flush=True)
     if engine == "hf":
+        revision = plan.get("revision", asset["revision"])
+        if not re.fullmatch(r"[0-9a-f]{40}", revision):
+            raise ValueError("HF transfer requires the identity-checked immutable revision")
         try:
-            stage = Path(hf_hub_download(asset["repo"], asset["file"], revision=asset["revision"], local_dir=staging_root, token=token("HF_TOKEN") or False))
+            stage = Path(hf_hub_download(asset["repo"], asset["file"], revision=revision, local_dir=staging_root, token=token("HF_TOKEN") or False))
         except Exception as exc:
             # A valid identity was already checked. Obtain a short-lived official
             # HF redirect for aria2 if Xet transport fails; never use a new model.
             print(f"XET fallback {asset['id']}: {type(exc).__name__}", flush=True)
             headers = {"Authorization": "Bearer " + token("HF_TOKEN")} if token("HF_TOKEN") else {}
-            req = urllib.request.Request(hf_hub_url(asset["repo"], asset["file"], revision=asset["revision"]), headers=headers)
+            req = urllib.request.Request(hf_hub_url(asset["repo"], asset["file"], revision=revision), headers=headers)
             try:
                 with urllib.request.build_opener(SafeRedirect()).open(req, timeout=25) as response:
                     url = response.geturl()

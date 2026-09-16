@@ -13,7 +13,7 @@ import uuid
 
 from bootstrap_status import write_status
 from gpu_preflight import sanitize
-from models import atomic_json, load_manifest, provision, safe_path, valid, resolve_source, aria_download
+from models import atomic_json, load_manifest, provision, safe_path, valid, resolve_source, aria_download, selected_manifest
 
 BUNDLE = Path(__file__).resolve().parent.parent
 
@@ -132,7 +132,12 @@ def main():
             raise RuntimeError("CUDA preflight failed. Save the diagnostic JSON from port 8188.")
         if server.poll() is not None:
             raise RuntimeError("Startup status server could not bind port 8188")
-        manifest = BUNDLE / "config/models.json"
+        manifest = config / "selected-models.json"
+        lora_profile = os.environ.get("LORA_PROFILE", "all").lower()
+        selected = selected_manifest(BUNDLE / "config/models.json", BUNDLE / "config/loras.json", lora_profile)
+        atomic_json(manifest, selected)
+        loras = [a for a in selected["assets"] if a["path"].startswith("loras/")]
+        print(f"LORA PROFILE: {lora_profile} / {len(loras)} files / {sum(a['size'] for a in loras)/1e9:.2f} GB; workflow switches default OFF", flush=True)
         results = []
         if truth(os.environ.get("DOWNLOAD_MOSAIC_MODELS", "1")):
             progress("mosaic-model", "自動モザイク検出モデル（約19 MB）を取得・検証しています")

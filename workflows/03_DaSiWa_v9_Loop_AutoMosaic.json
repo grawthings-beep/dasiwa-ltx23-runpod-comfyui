@@ -1,8 +1,8 @@
 {
   "id": "f66cc94b-2d50-52a0-ade7-980f737cdda6",
-  "revision": 1,
-  "last_node_id": 18,
-  "last_link_id": 24,
+  "revision": 2,
+  "last_node_id": 20,
+  "last_link_id": 26,
   "nodes": [
     {
       "id": 1,
@@ -25,8 +25,8 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            8,
-            23
+            10,
+            25
           ]
         },
         {
@@ -110,16 +110,16 @@
       ]
     },
     {
-      "id": 4,
-      "type": "ModelSamplingSD3",
-      "title": "HIGH · Shift 5",
+      "id": 19,
+      "type": "DaSiWaLoraHigh",
+      "title": "HIGH LoRA · Optional / default OFF",
       "pos": [
         560,
         220
       ],
       "size": [
         440,
-        90
+        340
       ],
       "flags": {},
       "order": 3,
@@ -136,28 +136,36 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            9
+            3
           ]
         }
       ],
       "properties": {
-        "Node name for S&R": "ModelSamplingSD3"
+        "Node name for S&R": "DaSiWaLoraHigh"
       },
       "widgets_values": [
-        5.0
+        false,
+        "None",
+        1.0,
+        false,
+        "None",
+        1.0,
+        false,
+        "None",
+        1.0
       ]
     },
     {
-      "id": 5,
-      "type": "ModelSamplingSD3",
-      "title": "LOW · Shift 5",
+      "id": 20,
+      "type": "DaSiWaLoraLow",
+      "title": "LOW LoRA · Optional / default OFF",
       "pos": [
         1060,
         220
       ],
       "size": [
         440,
-        90
+        340
       ],
       "flags": {},
       "order": 4,
@@ -174,7 +182,91 @@
           "name": "MODEL",
           "type": "MODEL",
           "links": [
-            10
+            4
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DaSiWaLoraLow"
+      },
+      "widgets_values": [
+        false,
+        "None",
+        1.0,
+        false,
+        "None",
+        1.0,
+        false,
+        "None",
+        1.0
+      ]
+    },
+    {
+      "id": 4,
+      "type": "ModelSamplingSD3",
+      "title": "HIGH · Shift 5",
+      "pos": [
+        560,
+        620
+      ],
+      "size": [
+        440,
+        90
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 3
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            11
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelSamplingSD3"
+      },
+      "widgets_values": [
+        5.0
+      ]
+    },
+    {
+      "id": 5,
+      "type": "ModelSamplingSD3",
+      "title": "LOW · Shift 5",
+      "pos": [
+        1060,
+        620
+      ],
+      "size": [
+        440,
+        90
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 4
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            12
           ]
         }
       ],
@@ -191,14 +283,14 @@
       "title": "UMT5 · GPU auto/offload",
       "pos": [
         40,
-        650
+        1050
       ],
       "size": [
         440,
         120
       ],
       "flags": {},
-      "order": 5,
+      "order": 7,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -206,7 +298,7 @@
           "name": "CLIP",
           "type": "CLIP",
           "links": [
-            3
+            5
           ]
         }
       ],
@@ -225,20 +317,20 @@
       "title": "02 · Describe the motion",
       "pos": [
         560,
-        390
+        790
       ],
       "size": [
         440,
         240
       ],
       "flags": {},
-      "order": 6,
+      "order": 8,
       "mode": 0,
       "inputs": [
         {
           "name": "clip",
           "type": "CLIP",
-          "link": 3
+          "link": 5
         }
       ],
       "outputs": [
@@ -246,8 +338,8 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            4,
-            5
+            6,
+            7
           ]
         }
       ],
@@ -264,20 +356,20 @@
       "title": "CFG 1 · no negative evaluation",
       "pos": [
         1060,
-        390
+        790
       ],
       "size": [
         440,
         70
       ],
       "flags": {},
-      "order": 7,
+      "order": 9,
       "mode": 0,
       "inputs": [
         {
           "name": "conditioning",
           "type": "CONDITIONING",
-          "link": 4
+          "link": 6
         }
       ],
       "outputs": [
@@ -285,7 +377,7 @@
           "name": "CONDITIONING",
           "type": "CONDITIONING",
           "links": [
-            6
+            8
           ]
         }
       ],
@@ -300,14 +392,14 @@
       "title": "Wan 2.1 VAE · correct for A14B",
       "pos": [
         40,
-        850
+        1250
       ],
       "size": [
         440,
         80
       ],
       "flags": {},
-      "order": 8,
+      "order": 10,
       "mode": 0,
       "inputs": [],
       "outputs": [
@@ -315,8 +407,8 @@
           "name": "VAE",
           "type": "VAE",
           "links": [
-            7,
-            18
+            9,
+            20
           ]
         }
       ],
@@ -333,30 +425,30 @@
       "title": "03 · Width / Height / Frames · batch = 1",
       "pos": [
         560,
-        740
+        1140
       ],
       "size": [
         440,
         290
       ],
       "flags": {},
-      "order": 9,
+      "order": 11,
       "mode": 0,
       "inputs": [
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 5
+          "link": 7
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 6
+          "link": 8
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 7
+          "link": 9
         },
         {
           "name": "clip_vision_start_image",
@@ -371,12 +463,12 @@
         {
           "name": "start_image",
           "type": "IMAGE",
-          "link": 8
+          "link": 10
         },
         {
           "name": "end_image",
           "type": "IMAGE",
-          "link": 23
+          "link": 25
         }
       ],
       "outputs": [
@@ -384,23 +476,23 @@
           "name": "positive",
           "type": "CONDITIONING",
           "links": [
-            11,
-            14
+            13,
+            16
           ]
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
           "links": [
-            12,
-            15
+            14,
+            17
           ]
         },
         {
           "name": "latent",
           "type": "LATENT",
           "links": [
-            13
+            15
           ]
         }
       ],
@@ -420,35 +512,35 @@
       "title": "04 · HIGH · first 2 steps",
       "pos": [
         1060,
-        650
+        1050
       ],
       "size": [
         440,
         390
       ],
       "flags": {},
-      "order": 10,
+      "order": 12,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 9
+          "link": 11
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 11
+          "link": 13
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 12
+          "link": 14
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 13
+          "link": 15
         }
       ],
       "outputs": [
@@ -456,7 +548,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            16
+            18
           ]
         }
       ],
@@ -482,35 +574,35 @@
       "title": "05 · LOW · last 2 steps",
       "pos": [
         1560,
-        650
+        1050
       ],
       "size": [
         440,
         390
       ],
       "flags": {},
-      "order": 11,
+      "order": 13,
       "mode": 0,
       "inputs": [
         {
           "name": "model",
           "type": "MODEL",
-          "link": 10
+          "link": 12
         },
         {
           "name": "positive",
           "type": "CONDITIONING",
-          "link": 14
+          "link": 16
         },
         {
           "name": "negative",
           "type": "CONDITIONING",
-          "link": 15
+          "link": 17
         },
         {
           "name": "latent_image",
           "type": "LATENT",
-          "link": 16
+          "link": 18
         }
       ],
       "outputs": [
@@ -518,7 +610,7 @@
           "name": "LATENT",
           "type": "LATENT",
           "links": [
-            17
+            19
           ]
         }
       ],
@@ -544,25 +636,25 @@
       "title": "06 · Decode · native OOM fallback",
       "pos": [
         1560,
-        1120
+        1520
       ],
       "size": [
         440,
         90
       ],
       "flags": {},
-      "order": 12,
+      "order": 14,
       "mode": 0,
       "inputs": [
         {
           "name": "samples",
           "type": "LATENT",
-          "link": 17
+          "link": 19
         },
         {
           "name": "vae",
           "type": "VAE",
-          "link": 18
+          "link": 20
         }
       ],
       "outputs": [
@@ -570,7 +662,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            19
+            21
           ]
         }
       ],
@@ -585,20 +677,20 @@
       "title": "07 · RIFE 4.9 · 16 -> 32 FPS · loop trim",
       "pos": [
         1560,
-        1300
+        1700
       ],
       "size": [
         440,
         220
       ],
       "flags": {},
-      "order": 13,
+      "order": 15,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 19
+          "link": 21
         }
       ],
       "outputs": [
@@ -606,14 +698,14 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            20
+            22
           ]
         },
         {
           "name": "output_fps",
           "type": "FLOAT",
           "links": [
-            22
+            24
           ]
         }
       ],
@@ -632,20 +724,20 @@
       "title": "08 · 2x NomosUni SPAN · 1440 x 1920",
       "pos": [
         2060,
-        1300
+        1700
       ],
       "size": [
         440,
         150
       ],
       "flags": {},
-      "order": 14,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 20
+          "link": 22
         }
       ],
       "outputs": [
@@ -653,7 +745,7 @@
           "name": "IMAGE",
           "type": "IMAGE",
           "links": [
-            21
+            23
           ]
         }
       ],
@@ -670,25 +762,25 @@
       "title": "10 · Save mosaicked MP4 · 160 frames / 5s",
       "pos": [
         3060,
-        1300
+        1700
       ],
       "size": [
         440,
         360
       ],
       "flags": {},
-      "order": 17,
+      "order": 19,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 24
+          "link": 26
         },
         {
           "name": "fps",
           "type": "FLOAT",
-          "link": 22,
+          "link": 24,
           "widget": {
             "name": "fps"
           }
@@ -710,18 +802,18 @@
       "type": "Note",
       "pos": [
         40,
-        1120
+        1520
       ],
       "size": [
         930,
-        680
+        900
       ],
       "flags": {},
-      "order": 16,
+      "order": 18,
       "mode": 0,
       "properties": {},
       "widgets_values": [
-        "Start: upload an image, describe motion, then Run.\nGenerate: 720 x 960 / 81 frames / 16 FPS / 4 TOTAL steps (2 high + 2 low).\nFinish: RIFE 4.9 x2 -> SPAN x2 -> 1440 x 1920 / 32 FPS MP4.\nBoth postprocess nodes have an enabled switch. RIFE OFF automatically saves at 16 FPS.\nDo NOT bypass the RIFE node or disconnect its FPS output; use enabled=false instead.\nNative checkpoint precision; do not force fp8_fast or add Lightning/LightX2V.\nThe same seed is kept for comparisons; change HIGH noise_seed for variation.\nCFG=1 does not evaluate a negative prompt. No audio. Postprocessing adds time/RAM.\nLoop: the image CONDITIONS both ends; no source image is pasted into the result.\nRIFE handles the final interval, then drops ONLY the endpoint: 160 frames / 32 FPS = 5s.\nKeep trim_last_frame OFF in BOTH the mosaic and MP4 saver.\nA seamless motion/velocity match is NOT guaranteed. Use cyclic motion and a fixed camera.\n\nAUTO MOSAIC: output only, AFTER RIFE and SPAN. Source image is untouched.\nRIFE already removed the repeated endpoint BEFORE circular gap filling.\nKeep trim_last_frame OFF in mosaic AND Save MP4.\nJUST contours / confidence 0.30 / automatic tile size / max gap 3 output frames.\nDefault targets exclude anus and nipples. Review the entire output: detection is not guaranteed.\nErrors stop the graph; no unprocessed MP4 fallback. Anime detector, not for realistic footage."
+        "Start: upload an image, describe motion, then Run.\nGenerate: 720 x 960 / 81 frames / 16 FPS / 4 TOTAL steps (2 high + 2 low).\nFinish: RIFE 4.9 x2 -> SPAN x2 -> 1440 x 1920 / 32 FPS MP4.\nBoth postprocess nodes have an enabled switch. RIFE OFF automatically saves at 16 FPS.\nDo NOT bypass the RIFE node or disconnect its FPS output; use enabled=false instead.\nNative checkpoint precision; do not force fp8_fast or add Lightning/LightX2V.\nThe same seed is kept for comparisons; change HIGH noise_seed for variation.\nCFG=1 does not evaluate a negative prompt. No audio. Postprocessing adds time/RAM.\nLoop: the image CONDITIONS both ends; no source image is pasted into the result.\nRIFE handles the final interval, then drops ONLY the endpoint: 160 frames / 32 FPS = 5s.\nKeep trim_last_frame OFF in BOTH the mosaic and MP4 saver.\nA seamless motion/velocity match is NOT guaranteed. Use cyclic motion and a fixed camera.\n\nOPTIONAL LoRA: choose a file, then enable that slot. HIGH/LOW lists are stage-filtered.\nAll 3 slots per stage start OFF / None; OFF does not load or patch any LoRA.\n1.0 is a neutral control default, NOT an author-recommended optimum.\nDo not reuse old strengths blindly. WAN 2.1 Low files are experimental transfers.\nNo LightX2V/Lightning: this checkpoint is already distilled.\nDownload profile: LORA_PROFILE=all (21 files), core (5), none (0).\nOnly installed catalogue files appear; refresh/reload after adding files.\n\nAUTO MOSAIC: output only, AFTER RIFE and SPAN. Source image is untouched.\nRIFE already removed the repeated endpoint BEFORE circular gap filling.\nKeep trim_last_frame OFF in mosaic AND Save MP4.\nJUST contours / confidence 0.30 / automatic tile size / max gap 3 output frames.\nDefault targets exclude anus and nipples. Review the entire output: detection is not guaranteed.\nErrors stop the graph; no unprocessed MP4 fallback. Anime detector, not for realistic footage."
       ],
       "title": "READ ME · Quality / speed / loop boundaries"
     },
@@ -731,20 +823,20 @@
       "title": "09 · Auto Mosaic · JUST · output only",
       "pos": [
         2560,
-        1300
+        1700
       ],
       "size": [
         440,
         350
       ],
       "flags": {},
-      "order": 16,
+      "order": 18,
       "mode": 0,
       "inputs": [
         {
           "name": "images",
           "type": "IMAGE",
-          "link": 21
+          "link": 23
         }
       ],
       "outputs": [
@@ -752,7 +844,7 @@
           "name": "mosaicked_images",
           "type": "IMAGE",
           "links": [
-            24
+            26
           ]
         }
       ],
@@ -776,7 +868,7 @@
       1,
       2,
       0,
-      4,
+      19,
       0,
       "MODEL"
     ],
@@ -784,12 +876,28 @@
       2,
       3,
       0,
-      5,
+      20,
       0,
       "MODEL"
     ],
     [
       3,
+      19,
+      0,
+      4,
+      0,
+      "MODEL"
+    ],
+    [
+      4,
+      20,
+      0,
+      5,
+      0,
+      "MODEL"
+    ],
+    [
+      5,
       6,
       0,
       7,
@@ -797,7 +905,7 @@
       "CLIP"
     ],
     [
-      4,
+      6,
       7,
       0,
       8,
@@ -805,7 +913,7 @@
       "CONDITIONING"
     ],
     [
-      5,
+      7,
       7,
       0,
       10,
@@ -813,7 +921,7 @@
       "CONDITIONING"
     ],
     [
-      6,
+      8,
       8,
       0,
       10,
@@ -821,7 +929,7 @@
       "CONDITIONING"
     ],
     [
-      7,
+      9,
       9,
       0,
       10,
@@ -829,7 +937,7 @@
       "VAE"
     ],
     [
-      8,
+      10,
       1,
       0,
       10,
@@ -837,7 +945,7 @@
       "IMAGE"
     ],
     [
-      9,
+      11,
       4,
       0,
       11,
@@ -845,7 +953,7 @@
       "MODEL"
     ],
     [
-      10,
+      12,
       5,
       0,
       12,
@@ -853,47 +961,47 @@
       "MODEL"
     ],
     [
-      11,
+      13,
       10,
       0,
       11,
       1,
       "CONDITIONING"
-    ],
-    [
-      12,
-      10,
-      1,
-      11,
-      2,
-      "CONDITIONING"
-    ],
-    [
-      13,
-      10,
-      2,
-      11,
-      3,
-      "LATENT"
     ],
     [
       14,
       10,
-      0,
-      12,
       1,
+      11,
+      2,
       "CONDITIONING"
     ],
     [
       15,
       10,
+      2,
+      11,
+      3,
+      "LATENT"
+    ],
+    [
+      16,
+      10,
+      0,
+      12,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      17,
+      10,
       1,
       12,
       2,
       "CONDITIONING"
     ],
     [
-      16,
+      18,
       11,
       0,
       12,
@@ -901,7 +1009,7 @@
       "LATENT"
     ],
     [
-      17,
+      19,
       12,
       0,
       13,
@@ -909,7 +1017,7 @@
       "LATENT"
     ],
     [
-      18,
+      20,
       9,
       0,
       13,
@@ -917,7 +1025,7 @@
       "VAE"
     ],
     [
-      19,
+      21,
       13,
       0,
       17,
@@ -925,7 +1033,7 @@
       "IMAGE"
     ],
     [
-      20,
+      22,
       17,
       0,
       18,
@@ -933,7 +1041,7 @@
       "IMAGE"
     ],
     [
-      21,
+      23,
       18,
       0,
       16,
@@ -941,7 +1049,7 @@
       "IMAGE"
     ],
     [
-      22,
+      24,
       17,
       1,
       14,
@@ -949,7 +1057,7 @@
       "FLOAT"
     ],
     [
-      23,
+      25,
       1,
       0,
       10,
@@ -957,7 +1065,7 @@
       "IMAGE"
     ],
     [
-      24,
+      26,
       16,
       0,
       14,
@@ -969,7 +1077,7 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.45,
+      "scale": 0.4,
       "offset": [
         50,
         50

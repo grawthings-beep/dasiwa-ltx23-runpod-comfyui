@@ -7,7 +7,31 @@ import torch
 import folder_paths
 from comfy_api.latest import ComfyExtension, io, ui
 from .mosaic_nodes import WanAutoMosaicVideo, MODEL_FILENAME, DEFAULT_CLASSES
-from . import postprocess
+from . import postprocess, lora_stack
+
+
+class DaSiWaLoraHigh(io.ComfyNode):
+    stage = "high"
+
+    @classmethod
+    def define_schema(cls):
+        options = lora_stack.choices(cls.stage, folder_paths.get_filename_list("loras"))
+        inputs = [io.Model.Input("model")]
+        for i in range(1, lora_stack.SLOTS + 1):
+            inputs += [io.Boolean.Input(f"enabled_{i}", default=False),
+                       io.Combo.Input(f"lora_{i}", options=options, default=lora_stack.NONE),
+                       io.Float.Input(f"strength_{i}", default=1.0, min=-10, max=10, step=0.05,
+                                      tooltip="Neutral starting value, not an author recommendation. Compare one LoRA at a time.")]
+        return io.Schema(node_id=cls.__name__, display_name=f"{cls.stage.upper()} LoRA · 3 Optional Slots",
+                         category="DaSiWa/loaders", inputs=inputs, outputs=[io.Model.Output()])
+
+    @classmethod
+    def execute(cls, model, **values):
+        return io.NodeOutput(lora_stack.apply(model, cls.stage, values))
+
+
+class DaSiWaLoraLow(DaSiWaLoraHigh):
+    stage = "low"
 
 
 class DaSiWaRIFE2x(io.ComfyNode):
@@ -118,7 +142,7 @@ class DaSiWaSaveMP4(io.ComfyNode):
 
 class DaSiWaExtension(ComfyExtension):
     async def get_node_list(self):
-        return [DaSiWaSaveMP4, DaSiWaAutoMosaic, DaSiWaRIFE2x, DaSiWaUpscale2x]
+        return [DaSiWaSaveMP4, DaSiWaAutoMosaic, DaSiWaRIFE2x, DaSiWaUpscale2x, DaSiWaLoraHigh, DaSiWaLoraLow]
 
 
 async def comfy_entrypoint():

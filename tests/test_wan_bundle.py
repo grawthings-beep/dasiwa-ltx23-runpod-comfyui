@@ -122,7 +122,16 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(low["latent_image"], ["11", 0])
             self.assertEqual(api["10"]["inputs"]["width"], 720)
             self.assertEqual(api["10"]["inputs"]["height"], 960)
-            self.assertFalse(any("Lora" in node["class_type"] for node in api.values()))
+            self.assertEqual(api["19"]["class_type"], "DaSiWaLoraHigh")
+            self.assertEqual(api["20"]["class_type"], "DaSiWaLoraLow")
+            for node_id in ("19", "20"):
+                for slot in range(1, 4):
+                    self.assertFalse(api[node_id]["inputs"][f"enabled_{slot}"])
+                    self.assertEqual(api[node_id]["inputs"][f"lora_{slot}"], "None")
+            self.assertEqual(api["19"]["inputs"]["model"], ["2", 0])
+            self.assertEqual(api["20"]["inputs"]["model"], ["3", 0])
+            self.assertEqual(api["4"]["inputs"]["model"], ["19", 0])
+            self.assertEqual(api["5"]["inputs"]["model"], ["20", 0])
 
     def test_loop_is_conditioned_not_pasted(self):
         _, api = workflows.build(True)
