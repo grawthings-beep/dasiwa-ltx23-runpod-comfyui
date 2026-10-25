@@ -6,7 +6,7 @@ import av
 import torch
 import folder_paths
 from comfy_api.latest import ComfyExtension, io, ui
-from .mosaic_nodes import WanAutoMosaicVideo, MODEL_FILENAME, DEFAULT_CLASSES
+from .mosaic_nodes import WanAutoMosaicVideo, MODEL_FILENAME, DEFAULT_CLASSES, DEFAULT_BLOCK_SIZE
 from . import postprocess, lora_stack
 
 
@@ -69,7 +69,8 @@ class DaSiWaAutoMosaic(io.ComfyNode):
                     io.Combo.Input("coverage_preset", options=["JUST", "WIDE", "SAFE"], default="JUST"),
                     io.Float.Input("confidence", default=0.30, min=0.05, max=0.95, step=0.01),
                     io.Float.Input("iou_threshold", default=0.50, min=0.05, max=0.95, step=0.01),
-                    io.Int.Input("block_size", default=0, min=0, max=128, step=2),
+                    io.Int.Input("block_size", default=DEFAULT_BLOCK_SIZE, min=0, max=128, step=1,
+                                 tooltip="Output pixels after upscale. Default 20px; 1px steps. 0 keeps legacy automatic sizing."),
                     io.Int.Input("max_gap_frames", default=3, min=0, max=24),
                     io.String.Input("target_classes", default=DEFAULT_CLASSES),
                     io.Combo.Input("device", options=["auto", "cpu"], default="auto"),

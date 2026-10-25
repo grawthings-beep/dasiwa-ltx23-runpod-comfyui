@@ -12,6 +12,7 @@ from .mosaic_model import verify_model
 
 
 MODEL_FILENAME = "ntd11_anime_nsfw_segm_v5.pt"
+DEFAULT_BLOCK_SIZE = 20
 MODEL_CLASSES = (
     "nipples",
     "pussy",
@@ -264,31 +265,20 @@ def _fill_short_circular_gaps(frame_masks, max_gap_frames: int):
 
 
 def _fixed_grid_mosaic(rgb, block_size):
-    """Pixelate on a frame-global grid so moving masks never shift the tiles."""
+    """Match the image/local-video mosaic on a frame-global output-pixel grid."""
+    import cv2
+
     block = max(2, int(block_size))
-    height, width, channels = rgb.shape
-    padded_height = ((height + block - 1) // block) * block
-    padded_width = ((width + block - 1) // block) * block
-    padded = np.pad(
-        rgb,
-        ((0, padded_height - height), (0, padded_width - width), (0, 0)),
-        mode="edge",
+    height, width = rgb.shape[:2]
+    reduced = cv2.resize(
+        rgb, (max(1, width // block), max(1, height // block)),
+        interpolation=cv2.INTER_LINEAR_EXACT,
     )
-    reduced = padded.reshape(
-        padded_height // block,
-        block,
-        padded_width // block,
-        block,
-        channels,
-    ).mean(axis=(1, 3), dtype=np.float32)
-    return (
-        reduced.repeat(block, axis=0)
-        .repeat(block, axis=1)[:height, :width]
-        .astype(np.uint8)
-    )
+    return cv2.resize(reduced, (width, height), interpolation=cv2.INTER_NEAREST_EXACT)
 
 
 def _resolve_block_size(block_size, width: int, height: int):
+    # Keep explicit 0 as the legacy automatic mode for saved workflows.
     requested = int(block_size)
     if requested > 0:
         return max(2, requested)
@@ -320,7 +310,8 @@ class WanAutoMosaicVideo:
                 ),
                 "block_size": (
                     "INT",
-                    {"default": 0, "min": 0, "max": 128, "step": 2},
+                    {"default": DEFAULT_BLOCK_SIZE, "min": 0, "max": 128, "step": 1,
+                     "tooltip": "Output pixels after upscale. Default 20px; 1px steps. 0 keeps legacy automatic sizing."},
                 ),
                 "max_gap_frames": (
                     "INT",

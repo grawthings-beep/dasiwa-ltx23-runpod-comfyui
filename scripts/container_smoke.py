@@ -79,7 +79,7 @@ def main():
                     "1": {"class_type": "EmptyImage", "inputs": {"width": 64, "height": 64, "batch_size": 4, "color": 6724044}},
                     "4": {"class_type": "DaSiWaRIFE2x", "inputs": {"images": ["1", 0], "enabled": rife, "source_fps": 16.0, "loop": loop}},
                     "5": {"class_type": "DaSiWaUpscale2x", "inputs": {"images": ["4", 0], "enabled": scale}},
-                    "3": {"class_type": "DaSiWaAutoMosaic", "inputs": {"images": ["5", 0], "coverage_preset": "JUST", "confidence": .95, "iou_threshold": .5, "block_size": 0, "max_gap_frames": 3, "target_classes": "pussy,penis,testicles", "device": "cpu", "trim_last_frame": False}},
+                    "3": {"class_type": "DaSiWaAutoMosaic", "inputs": {"images": ["5", 0], "coverage_preset": "JUST", "confidence": .95, "iou_threshold": .5, "block_size": 20, "max_gap_frames": 3, "target_classes": "pussy,penis,testicles", "device": "cpu", "trim_last_frame": False}},
                     "2": {"class_type": "DaSiWaSaveMP4", "inputs": {"images": ["3", 0], "fps": ["4", 1], "filename_prefix": "smoke/" + name, "crf": 18, "trim_last_frame": False}},
                 }
                 result = api("/prompt", {"prompt": prompt, "client_id": "build-smoke"})

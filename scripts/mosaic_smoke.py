@@ -98,11 +98,19 @@ def main():
 
         detector = FakeDetector()
         with patch.object(mosaic, "_load_model", return_value=detector), patch.object(mosaic, "_inference_device", return_value="cuda:0"):
-            output = mosaic.WanAutoMosaicVideo().apply(image, path.name, "JUST", .3, .5, 10, 3, "pussy", "auto")[0]
+            output = mosaic.WanAutoMosaicVideo().apply(image, path.name, "JUST", .3, .5, 20, 3, "pussy", "auto")[0]
         assert detector.calls == ["cuda:0"] + ["cpu"] * 4 and detector.offloads == ["cpu"]
         assert output.shape == image.shape and output.device.type == "cpu"
         torch.testing.assert_close(output[:, :10], image[:, :10], rtol=0, atol=0)
         assert not torch.equal(output[:, 24:36, 24:36], image[:, 24:36, 24:36])
+        for index in range(len(image)):
+            expected = mosaic._fixed_grid_mosaic((image[index].numpy() * 255).round().astype(np.uint8), 20)
+            np.testing.assert_array_equal(output[index, 24:36, 24:36].numpy(),
+                                          expected[24:36, 24:36].astype(np.float32) / 255)
+        with patch.object(mosaic, "_load_model", return_value=detector), patch.object(mosaic, "_inference_device", return_value="cpu"), \
+                patch.object(detector, "predict", return_value=[types.SimpleNamespace(masks=None, boxes=None)]):
+            untouched = mosaic.WanAutoMosaicVideo().apply(image, path.name, "JUST", .3, .5, 20, 3, "pussy", "cpu")[0]
+        torch.testing.assert_close(untouched, image, rtol=0, atol=0)
         failed = FakeDetector()
         with patch.object(mosaic, "_load_model", return_value=failed), patch.object(mosaic, "_inference_device", return_value="cuda:0"), patch.object(failed, "predict", side_effect=RuntimeError("simulated failure")):
             try: mosaic.WanAutoMosaicVideo().apply(image, path.name, "JUST", .3, .5, 10, 3, "pussy", "auto")

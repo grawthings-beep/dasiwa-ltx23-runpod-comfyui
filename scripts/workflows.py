@@ -90,7 +90,7 @@ def build_mosaic():
     ui, graph = build(True)
     ui["id"] = str(uuid.uuid5(uuid.NAMESPACE_URL, "grawthings/dasiwa/v9/loop-mosaic"))
     settings = {"coverage_preset": "JUST", "confidence": 0.30, "iou_threshold": 0.50,
-                "block_size": 0, "max_gap_frames": 3, "target_classes": "pussy,penis,testicles",
+                "block_size": 20, "max_gap_frames": 3, "target_classes": "pussy,penis,testicles",
                 "device": "auto", "trim_last_frame": False}
     graph["16"] = {"class_type": "DaSiWaAutoMosaic", "inputs": {"images": ["18", 0], **settings},
                    "_meta": {"title": "09 · Auto Mosaic · JUST · output only"}}
@@ -110,7 +110,7 @@ def build_mosaic():
     saver["widgets_values"] = [32.0, "DaSiWa/loop_mosaic", 18, False]
     note = next(node for node in ui["nodes"] if node["id"] == 15)
     note["size"] = [930, 900]
-    note["widgets_values"][0] += "\n\nAUTO MOSAIC: output only, AFTER RIFE and SPAN. Source image is untouched.\nRIFE already removed the repeated endpoint BEFORE circular gap filling.\nKeep trim_last_frame OFF in mosaic AND Save MP4.\nJUST contours / confidence 0.30 / automatic tile size / max gap 3 output frames.\nDefault targets exclude anus and nipples. Review the entire output: detection is not guaranteed.\nErrors stop the graph; no unprocessed MP4 fallback. Anime detector, not for realistic footage."
+    note["widgets_values"][0] += "\n\nAUTO MOSAIC: output only, AFTER RIFE and SPAN. Source image is untouched.\nRIFE already removed the repeated endpoint BEFORE circular gap filling.\nKeep trim_last_frame OFF in mosaic AND Save MP4.\nJUST contours / confidence 0.30 / 20 output-pixel tiles / max gap 3 output frames.\nblock_size: 1px steps; same frame-global sampling as the image/local-video tools.\n0 keeps legacy automatic sizing. Saved workflows retain their values.\nDefault targets exclude anus and nipples. Review the entire output: detection is not guaranteed.\nErrors stop the graph; no unprocessed MP4 fallback. Anime detector, not for realistic footage."
     ui.update(last_node_id=20, last_link_id=new_id)
     return ui, graph
 
