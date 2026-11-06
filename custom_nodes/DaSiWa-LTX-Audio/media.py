@@ -2,9 +2,8 @@
 import math
 import os
 from pathlib import Path
-import subprocess
+from fractions import Fraction
 import tempfile
-import wave
 
 import av
 import numpy as np
@@ -112,42 +111,55 @@ def mux_copy(source, target, waveform, sample_rate, fade_ms=20, interrupt=lambda
     info = probe(source)
     audio = fit_audio(waveform, sample_rate, info["duration"], fade_ms)
     target.parent.mkdir(parents=True, exist_ok=True)
-    # ffmpeg can see only local files here. No user strings are shell commands.
+    # Use the pinned PyAV's FFmpeg rather than a distro's older ffmpeg CLI,
+    # which can infer a different final packet duration for VFR input.
     with tempfile.TemporaryDirectory(prefix=".ltx-audio-", dir=target.parent) as temp:
         temp = Path(temp)
-        wav = temp / "generated.wav"
         partial = temp / "result.mp4"
-        with wave.open(str(wav), "wb") as output:
-            output.setnchannels(audio.shape[0])
-            output.setsampwidth(2)
-            output.setframerate(sample_rate)
-            output.writeframes((audio.T * 32767).round().astype("<i2").tobytes())
-        command = ["ffmpeg", "-nostdin", "-hide_banner", "-loglevel", "error", "-i", str(source),
-                   "-i", str(wav), "-map", "0:v:0", "-map", "1:a:0", "-map_metadata", "0",
-                   "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(partial)]
-        with (temp / "ffmpeg.log").open("wb") as log:
-            child = subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=log)
-            try:
-                while True:
+        with av.open(str(source)) as original, av.open(str(partial), "w", format="mp4", options={"movflags": "+faststart"}) as output:
+            original_video = original.streams.video[0]
+            copied_video = output.add_stream_from_template(original_video)
+            copied_video.time_base = original_video.time_base
+            output.metadata.update(original.metadata)
+            sound = output.add_stream("aac", rate=sample_rate)
+            sound.layout = "mono" if audio.shape[0] == 1 else "stereo"
+            sound.bit_rate = 192000
+            sound.time_base = Fraction(1, sample_rate)
+
+            def video_packets():
+                for packet in original.demux(original_video):
                     interrupt()
-                    try:
-                        code = child.wait(timeout=.2)
-                        break
-                    except subprocess.TimeoutExpired:
-                        continue
-                if code:
-                    raise RuntimeError("Audio mux failed: " + (temp / "ffmpeg.log").read_text(errors="replace")[-1500:])
-            finally:
-                if child.poll() is None:
-                    child.terminate()
-                    try:
-                        child.wait(timeout=5)
-                    except subprocess.TimeoutExpired:
-                        child.kill()
-                        child.wait()
+                    if packet.size:
+                        if packet.dts is None:
+                            raise ValueError("Video packet lacks a decode timestamp")
+                        packet.stream = copied_video
+                        yield packet
+
+            def audio_packets():
+                for pos in range(0, audio.shape[1], 1024):
+                    interrupt()
+                    frame = av.AudioFrame.from_ndarray(np.ascontiguousarray(audio[:, pos:pos+1024]),
+                        format="fltp", layout=sound.layout.name)
+                    frame.sample_rate = sample_rate
+                    frame.time_base = Fraction(1, sample_rate)
+                    frame.pts = pos + round(info["start"] * sample_rate)
+                    yield from sound.encode(frame)
+                yield from sound.encode()
+
+            # Keep at most one compressed video/audio packet in our own queues.
+            viter, aiter = iter(video_packets()), iter(audio_packets())
+            vp, ap = next(viter, None), next(aiter, None)
+            while vp is not None or ap is not None:
+                interrupt()
+                if ap is None or (vp is not None and vp.dts * vp.time_base <= ap.dts * ap.time_base):
+                    output.mux(vp)
+                    vp = next(viter, None)
+                else:
+                    output.mux(ap)
+                    ap = next(aiter, None)
         check = probe(partial)
         if abs(check["duration"] - info["duration"]) > .001 or (check["width"], check["height"]) != (info["width"], info["height"]):
-            raise RuntimeError("Mux unexpectedly changed the video dimensions/duration")
+            raise RuntimeError(f"Mux unexpectedly changed video dimensions/duration: {info} -> {check}")
         with av.open(str(partial)) as output:
             if len(output.streams.audio) != 1:
                 raise RuntimeError("Mux produced no audio stream")

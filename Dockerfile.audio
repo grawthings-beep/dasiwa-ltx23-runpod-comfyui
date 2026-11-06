@@ -8,7 +8,7 @@ ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CH
     HF_XET_HIGH_PERFORMANCE=1 HF_XET_CHUNK_CACHE_SIZE_BYTES=0 HF_HUB_DISABLE_TELEMETRY=1 \
     AUDIO_RUNTIME=dragonleap-v4 AUDIO_PROFILE=dragonleap-v4 \
     YOLO_AUTOINSTALL=false YOLO_CONFIG_DIR=/tmp/ultralytics
-RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates aria2 ffmpeg libglib2.0-0 libgl1 python3-venv \
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates aria2 libglib2.0-0 libgl1 python3-venv \
     && rm -rf /var/lib/apt/lists/*
 RUN python -m venv --system-site-packages /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"

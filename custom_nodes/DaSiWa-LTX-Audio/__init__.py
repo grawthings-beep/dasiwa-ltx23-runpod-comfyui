@@ -31,7 +31,7 @@ class DaSiWaLTXAudio(io.ComfyNode):
 
     @classmethod
     def execute(cls, video, prompt, seed, reference_max_side, refine_audio):
-        if os.environ.get("AUDIO_PROFILE", "none") != "dragonleap-v4":
+        if os.environ.get("AUDIO_PROFILE", "none").lower() != "dragonleap-v4":
             raise RuntimeError("Use the wan22-v9-ltxaudio-cu130 image with AUDIO_PROFILE=dragonleap-v4")
         return io.NodeOutput(engine.generate(source_path(video), prompt, seed, int(reference_max_side), refine_audio))
 

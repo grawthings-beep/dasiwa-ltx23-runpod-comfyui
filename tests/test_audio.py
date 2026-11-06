@@ -3,7 +3,6 @@ import importlib.util
 import json
 import os
 from pathlib import Path
-import shutil
 import sys
 import tempfile
 import unittest
@@ -49,7 +48,7 @@ def make_video(path, fps=32, seconds=5, vfr=False):
 def packets(path):
     with av.open(str(path)) as source:
         stream = source.streams.video[0]
-        return [(hashlib.sha256(bytes(p)).hexdigest(), p.pts * p.time_base, p.dts * p.time_base)
+        return [(hashlib.sha256(bytes(p)).hexdigest(), p.pts * p.time_base, p.dts * p.time_base, p.duration * p.time_base)
                 for p in source.demux(stream) if p.size]
 
 
@@ -124,10 +123,9 @@ class AudioMediaTests(unittest.TestCase):
             _, _, expected = media.reference_plan(info)
             self.assertEqual(len(frames), expected)
             self.assertLess(abs(info["duration"] - 4), .05)
-            if shutil.which("ffmpeg"):
-                output = Path(temp) / "vfr_audio.mp4"
-                media.mux_copy(path, output, np.zeros((2, round(info["duration"] * 48000))), 48000)
-                self.assertEqual(packets(path), packets(output))
+            output = Path(temp) / "vfr_audio.mp4"
+            media.mux_copy(path, output, np.zeros((2, round(info["duration"] * 48000))), 48000)
+            self.assertEqual(packets(path), packets(output))
 
     def test_overlong_video_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -145,7 +143,6 @@ class AudioMediaTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 media.fit_audio(audio, 48000, 5)
 
-    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg required (mandatory in CI/audio image)")
     def test_mux_video_packets_and_timestamps_unchanged(self):
         with tempfile.TemporaryDirectory() as temp:
             source, output = Path(temp) / "original.mp4", Path(temp) / "with_audio.mp4"
@@ -160,13 +157,22 @@ class AudioMediaTests(unittest.TestCase):
                 self.assertEqual(float(result.streams.video[0].average_rate), 32)
                 self.assertAlmostEqual(float(result.streams.audio[0].duration * result.streams.audio[0].time_base), 5, places=2)
                 self.assertEqual(len(list(result.decode(video=0))), 160)
+            with av.open(str(output)) as result:
+                decoded = np.concatenate([frame.to_ndarray() for frame in result.decode(audio=0)], axis=1)
+                self.assertGreater(float(np.sqrt(np.mean(decoded ** 2))), .02)
+            replaced = Path(temp) / "replaced_audio.mp4"
+            media.mux_copy(output, replaced, np.zeros((2, 240000)), 48000)
+            self.assertEqual(packets(source), packets(replaced))
+            with av.open(str(replaced)) as result:
+                self.assertEqual(len(result.streams.audio), 1)
+                decoded = np.concatenate([frame.to_ndarray() for frame in result.decode(audio=0)], axis=1)
+                self.assertLess(float(np.abs(decoded).max()), .0001)
             self.assertFalse(list(Path(temp).glob(".ltx-audio-*")))
             with self.assertRaises(ValueError):
                 media.mux_copy(source, output, audio, 48000)
             with self.assertRaises(ValueError):
                 media.mux_copy(source, source, audio, 48000)
 
-    @unittest.skipUnless(shutil.which("ffmpeg"), "ffmpeg required (mandatory in CI/audio image)")
     def test_mux_cancel_leaves_no_output(self):
         with tempfile.TemporaryDirectory() as temp:
             source, output = Path(temp) / "original.mp4", Path(temp) / "out.mp4"
