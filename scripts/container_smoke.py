@@ -8,7 +8,7 @@ import tempfile
 import time
 import urllib.request
 from models import load_manifest, valid, safe_path
-from startup import BUNDLE, comfy_command, prepare, stop
+from startup import BUNDLE, comfy_command, prepare, stop, audio_enabled
 
 
 def fetch_post_models(root):
@@ -55,7 +55,10 @@ def main():
                     time.sleep(1)
             else:
                 raise TimeoutError("CPU ComfyUI did not start")
-            for path in (BUNDLE / "api").glob("*.json"):
+            graphs = list((BUNDLE / "api").glob("*.json"))
+            if audio_enabled():
+                graphs += list((BUNDLE / "api_audio").glob("*.json"))
+            for path in graphs:
                 graph = json.loads(path.read_text())
                 for key, node in graph.items():
                     schema = info[node["class_type"]]
@@ -66,7 +69,7 @@ def main():
                         if isinstance(value, list):
                             upstream = info[graph[value[0]]["class_type"]]
                             assert upstream["output"][value[1]] == inputs[name][0], (key, name, "type mismatch")
-                        elif isinstance(inputs[name][0], list) and name not in ("unet_name", "clip_name", "vae_name", "image"):
+                        elif isinstance(inputs[name][0], list) and name not in ("unet_name", "clip_name", "vae_name", "image", "file"):
                             assert value in inputs[name][0], (key, name, value)
                 print(f"SCHEMA OK: {path.name}", flush=True)
             import av

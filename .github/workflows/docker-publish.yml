@@ -14,9 +14,10 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
-      - run: python -m pip install Pillow==11.3.0 numpy==2.2.6 opencv-python-headless==4.12.0.88
-      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends aria2
+      - run: python -m pip install Pillow==11.3.0 numpy==2.2.6 opencv-python-headless==4.12.0.88 av==17.0.0
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends aria2 ffmpeg
       - run: python scripts/workflows.py --check
+      - run: python scripts/audio_workflow.py --check
       - run: python -m unittest discover -s tests -v
       - run: python -m compileall -q scripts custom_nodes tests
   image:
@@ -47,3 +48,32 @@ jobs:
           echo 'Real aria2, CPU startup, workflow schemas, synthetic LoRA patch/forward/unpatch, real RIFE/SPAN weights, mosaic and MP4 output/FPS/trim smoke: passed.' >> "$GITHUB_STEP_SUMMARY"
           echo 'GPU generation, visual quality, RunPod cold-start timing: NOT tested by this runner.' >> "$GITHUB_STEP_SUMMARY"
           echo 'Image digest: ${{ steps.build.outputs.digest }}' >> "$GITHUB_STEP_SUMMARY"
+  audio-image:
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v7
+        id: build
+        with:
+          context: .
+          file: Dockerfile.audio
+          platforms: linux/amd64
+          push: true
+          cache-from: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache-ltxaudio
+          cache-to: type=registry,ref=ghcr.io/${{ github.repository }}:buildcache-ltxaudio,mode=max,image-manifest=true,oci-mediatypes=true
+          build-args: BUNDLE_REVISION=${{ github.sha }}
+          tags: |
+            ghcr.io/${{ github.repository }}:wan22-v9-ltxaudio-cu130
+            ghcr.io/${{ github.repository }}:wan22-v9-ltxaudio-cu130-sha-${{ github.sha }}
+      - name: Report audio validation scope
+        run: |
+          echo 'Audio image: pinned source DragonLeap V4 assets / CUDA13 / Comfy0.43.0. No model weights in OCI.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'CPU import/schema, native AV masks, stream-copy packet/timestamp identity and duration tests passed. GPU V2A sound quality, speed and memory are NOT validated.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'Audio image digest: ${{ steps.build.outputs.digest }}' >> "$GITHUB_STEP_SUMMARY"

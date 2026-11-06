@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "source_repository": "grawthings-beep/ltx23-i2v-runpod",
+  "source_commit": "5907bc8429c97942db1ee39fff2ce4f9995dd8e4",
+  "profile": "dragonleap-v4",
+  "assets": [
+    {
+      "id": "audio-gemma-text-encoder",
+      "path": "text_encoders/gemma_3_12B_it_fp8_e4m3fn.safetensors",
+      "repo": "GitMylo/LTX-2-comfy_gemma_fp8_e4m3fn",
+      "revision": "c26496d8fab07c9743fd09e24562e246ae009ed6",
+      "file": "gemma_3_12B_it_fp8_e4m3fn.safetensors",
+      "size": 13210008986,
+      "sha256": "38c8ca98d01afc93a04f9fb18255755884b9eb52b7b40080076e9c892609751b"
+    },
+    {
+      "id": "audio-ltx23-text-projection",
+      "path": "text_encoders/ltx-2.3_text_projection_bf16.safetensors",
+      "repo": "Kijai/LTX2.3_comfy",
+      "revision": "8e1eabef8e2d67e71bb02baedf12c98805ac36f3",
+      "file": "text_encoders/ltx-2.3_text_projection_bf16.safetensors",
+      "size": 2312149072,
+      "sha256": "911d59bb4cb7708179c9a0045ea0fe41212ecfb77aed3a02702b7c0a8274911f"
+    },
+    {
+      "id": "audio-ltx23-video-vae",
+      "path": "vae/LTX2/LTX23_video_vae_bf16.safetensors",
+      "repo": "Kijai/LTX2.3_comfy",
+      "revision": "8e1eabef8e2d67e71bb02baedf12c98805ac36f3",
+      "file": "vae/LTX23_video_vae_bf16.safetensors",
+      "size": 1452258578,
+      "sha256": "01ea62d09bc139f95c5dee7b5c062ad6a3e6cd8be910a1983ac02e7eb5b8ee3b"
+    },
+    {
+      "id": "audio-ltx23-audio-vae",
+      "path": "vae/LTX2/LTX23_audio_vae_bf16.safetensors",
+      "repo": "Kijai/LTX2.3_comfy",
+      "revision": "8e1eabef8e2d67e71bb02baedf12c98805ac36f3",
+      "file": "vae/LTX23_audio_vae_bf16.safetensors",
+      "size": 364855188,
+      "sha256": "5bc10fa4adecf99dda132d916e23048cbd56797702c5fa50eb5d2079048a38c3"
+    },
+    {
+      "id": "audio-dasiwa-dragonleap-v4-int8-convrot",
+      "path": "diffusion_models/LTX2/DasiwaLTX23_dragonleapV4_INT8ConvRot.safetensors",
+      "repo": "darksidewalker/DaSiWa-LTX2.3",
+      "revision": "21c8bbd45b93b44a42306c09fa4c8d20d7c7eb88",
+      "file": "Distilled/DasiwaLTX23_dragonleapV4-INT8 ConvRot.safetensors",
+      "size": 27637479158,
+      "sha256": "be48b4cc7bc7d38e8fc4b9ef4216b641f58027717fe8cd0724f6f4b83089fdd1",
+      "gated": true
+    }
+  ]
+}

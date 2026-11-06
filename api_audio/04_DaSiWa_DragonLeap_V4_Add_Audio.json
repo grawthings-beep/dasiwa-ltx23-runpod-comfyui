@@ -1,0 +1,36 @@
+{
+  "1": {
+    "class_type": "LoadVideo",
+    "inputs": {
+      "file": "upload-your-finished-video.mp4"
+    }
+  },
+  "2": {
+    "class_type": "DaSiWaLTXAudio",
+    "inputs": {
+      "video": [
+        "1",
+        0
+      ],
+      "prompt": "Soft fabric rustling follows the visible movement, with quiet room ambience. No speech is present. No music is present.",
+      "seed": 42,
+      "reference_max_side": 640,
+      "refine_audio": true
+    }
+  },
+  "3": {
+    "class_type": "DaSiWaMuxAudio",
+    "inputs": {
+      "video": [
+        "1",
+        0
+      ],
+      "audio": [
+        "2",
+        0
+      ],
+      "filename_prefix": "DaSiWa/audio",
+      "edge_fade_ms": 20
+    }
+  }
+}

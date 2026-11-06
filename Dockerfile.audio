@@ -1,0 +1,56 @@
+# syntax=docker/dockerfile:1.7
+FROM pytorch/pytorch:2.10.0-cuda13.0-cudnn9-runtime@sha256:1f57418aedd9a4d0d3a59646619e1d4f82cacc33817247cead4f749e1f452d4b
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+ENV DEBIAN_FRONTEND=noninteractive PYTHONUNBUFFERED=1 PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1 PIP_CONSTRAINT=/opt/wan22/constraints.txt \
+    EXPECTED_TORCH_VERSION=2.10.0+cu130 EXPECTED_TORCHVISION_VERSION=0.25.0+cu130 \
+    EXPECTED_TORCHAUDIO_VERSION=2.10.0+cu130 EXPECTED_TORCH_CUDA=13.0 \
+    HF_XET_HIGH_PERFORMANCE=1 HF_XET_CHUNK_CACHE_SIZE_BYTES=0 HF_HUB_DISABLE_TELEMETRY=1 \
+    AUDIO_RUNTIME=dragonleap-v4 AUDIO_PROFILE=dragonleap-v4 \
+    YOLO_AUTOINSTALL=false YOLO_CONFIG_DIR=/tmp/ultralytics
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates aria2 ffmpeg libglib2.0-0 libgl1 python3-venv \
+    && rm -rf /var/lib/apt/lists/*
+RUN python -m venv --system-site-packages /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+COPY config/constraints.txt /opt/wan22/constraints.txt
+ARG COMFYUI_REVISION=426f5eea52a7ece1dd599fff4cb6cd1f352ddd24
+RUN git init /opt/ComfyUI \
+    && git -C /opt/ComfyUI remote add origin https://github.com/Comfy-Org/ComfyUI.git \
+    && git -C /opt/ComfyUI fetch --depth=1 origin ${COMFYUI_REVISION} \
+    && git -C /opt/ComfyUI checkout --detach FETCH_HEAD \
+    && rm -rf /opt/ComfyUI/.git \
+    && python -m pip install -r /opt/ComfyUI/requirements.txt
+# Isolate Hub 1.x from Transformers 4.x's Hub <1 dependency. Startup only imports
+# the new Hub inside the downloader process, never inside ComfyUI.
+RUN env -u PIP_CONSTRAINT python -m pip install --target /opt/wan22/downloader-libs \
+    huggingface_hub==1.24.0 hf-xet==1.5.2
+# Install the detector runtime at build time, constrained to the existing Torch stack.
+RUN python -m pip install ultralytics==8.4.104 opencv-python==4.12.0.88
+COPY custom_nodes/DaSiWa-WAN /opt/ComfyUI/custom_nodes/DaSiWa-WAN
+COPY custom_nodes/DaSiWa-LTX-Audio /opt/ComfyUI/custom_nodes/DaSiWa-LTX-Audio
+COPY scripts /opt/wan22/scripts
+COPY config/models.json /opt/wan22/config/models.json
+COPY config/loras.json /opt/wan22/config/loras.json
+COPY config/loras.json /opt/ComfyUI/custom_nodes/DaSiWa-WAN/loras.json
+COPY workflows /opt/wan22/workflows
+COPY api /opt/wan22/api
+COPY config/audio-models.json /opt/wan22/config/audio-models.json
+COPY workflows_audio /opt/wan22/workflows_audio
+COPY api_audio /opt/wan22/api_audio
+COPY tests /opt/wan22/tests
+RUN python /opt/wan22/scripts/gpu_preflight.py --stack-only \
+    && python -m unittest discover -s /opt/wan22/tests -p test_aria_download.py -v \
+    && python /opt/wan22/scripts/mosaic_smoke.py \
+    && python /opt/wan22/scripts/lora_smoke.py \
+    && python /opt/wan22/scripts/audio_smoke.py \
+    && python /opt/wan22/scripts/container_smoke.py
+ARG BUNDLE_REVISION=unknown
+ENV BUNDLE_REVISION=${BUNDLE_REVISION}
+LABEL org.opencontainers.image.source="https://github.com/grawthings-beep/dasiwa-ltx23-runpod-comfyui" \
+      org.opencontainers.image.revision="${BUNDLE_REVISION}" \
+      io.grawthings.workflow="wan22-synthseduction-v9-ltx-audio" \
+      io.grawthings.comfy-revision="${COMFYUI_REVISION}"
+WORKDIR /opt/ComfyUI
+EXPOSE 8188
+ENTRYPOINT []
+CMD ["python", "/opt/wan22/scripts/startup.py"]

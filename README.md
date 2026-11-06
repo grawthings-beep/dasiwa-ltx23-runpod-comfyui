@@ -1,6 +1,51 @@
 # DaSiWa WAN 2.2 · SynthSeduction v9 · RunPod
 
-このrepoの **mainはWAN 2.2専用**。repo名に`ltx23`は残っていますが、LTX用コード・workflowは`archive/ltx23/`に退避し、コンテナには含めません。旧イメージの`0.2.2`/`latest`タグは上書きしません。
+このrepoの標準イメージは **WAN 2.2用**。旧LTXコードは`archive/ltx23/`に退避し、コンテナには含めません。別イメージに、完成動画へ音だけを追加するLTX 2.3ワークフローを追加しました。旧イメージの`0.2.2`/`latest`タグは上書きしません。
+
+## 任意追加: 指定LTX repoのモデルで完成動画へ音声を追加
+
+通常のWANイメージはCUDA12.8のままです。音声対応版は **`ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:wan22-v9-ltxaudio-cu130`**。Actions成功後、そのcommitの`wan22-v9-ltxaudio-cu130-sha-<40桁SHA>`タグで固定してください。起動済みPodのコードやイメージが自動更新されるわけではありません。
+
+採用元: [ltx23-i2v-runpod / 5907bc8](https://github.com/grawthings-beep/ltx23-i2v-runpod/tree/5907bc8429c97942db1ee39fff2ce4f9995dd8e4)。既定の`dasiwa`プロファイルと同一の **DragonLeap V4 INT8 ConvRot**、Gemma FP8、text projection、video/audio VAEの5ファイルを、同じrevision・サイズ・SHA256で取得します。設定は`config/audio-models.json`。モデルを別精度へ変換せず、追加概念LoRA、DMD、巨大なノードパック群は移植しません。
+
+これは**新規に組んだ試験的な動画→音声（V2A）派生**です。元repoは映像と音を同時に生成しますが、今回は完成MP4をVAEで参照化して、映像latentのdenoise maskを全0、音声を全1にして音だけをサンプリングします。公式Foley LoRAを使う構成ではありません。元repoでの音声品質が、この別モードでも再現できるとは保証しません。
+
+使い方:
+
+1. 従来の01〜03で動画を完成・保存する。モザイクを残す場合は**処理済みMP4**を使う。
+2. workflow一覧 → `DaSiWa-Audio` → `04_DaSiWa_DragonLeap_V4_Add_Audio`。
+3. 完成MP4を「Load Video」へアップロードし、音の内容・鳴るタイミングをpromptに入力 → Run。
+4. 新しい音付きMP4を保存。元動画の音声は置換（混合ではない）。入力ファイルは上書きしない。
+
+映像はFFmpegの **`-c:v copy`** で元の圧縮映像をそのままコピーします。アップスケール・RIFE・モザイク、解像度・fps・尺を維持し、LTXで映像を作り直すことはありません。音声のみAAC 192kbpsへ変換。既存3本の生成設定・配置は変更していません。
+
+制限・調整:
+
+- 入力は1本のH.264/H.265 MP4、7秒以下。まず既存の5秒ループで試してください。複数映像ストリーム・不明な尺・その他のcodecは黙って変換せずエラーにします。
+- 音声参照用のコピーだけ24fps・長辺640以下へ縮小し、1+8n枚へ末尾パディング。16/32fps入力もタイムスタンプでリサンプルし、再生速度を変えません。完成映像の末尾を切ったりフレームを追加したりしません。音は元動画の尺へクロップ。
+- `refine_audio=true`: 採用元のsampler設定を使用（Euler CFG++ / linear_quadratic / CFG1 / 8+4+2steps、後段denoise .4/.2）。`false`は8stepだけの試用設定で、品質が同じとは限りません。CFG1なのでnegative欄は設けません。
+- `reference_max_side`を512/384にすると参照側のメモリ・計算量を減らせますが、音声の同期・内容が変わる可能性があります。生成秒数は未計測。
+- `edge_fade_ms=20`で始終端のクリックを軽減します。**音そのもののループ一致・口パク同期・声質固定を保証するものではありません**。会話のために映像の口を動かす処理もありません。
+- WANをGPUからoffloadした後、テキスト→動画VAE→LTX本体→音声VAEを順に処理し、最後にモデルを解放。繰り返し時もLTXのロード時間は必要です。24/32GB VRAMでOOMしない保証はなく、実GPU試験は未実施です。
+
+RunPod音声版:
+
+| 項目 | 値 |
+|---|---|
+| Image | 上記`wan22-v9-ltxaudio-cu130`の成功SHAタグ |
+| HTTP port | `8188`（TCP追加なし） |
+| Volume / mount | Podローカル **150 GB / `/workspace`**を目安。Network Volume不要 |
+| Container disk | 30 GB以上 |
+| CPU RAM | 96 GB以上、余裕があれば128 GB以上（実機ピーク未計測） |
+| GPU / driver | CUDA13対応ホスト必須。48 GB VRAM以上に余裕、4090/5090はoffloadを伴う未検証枠 |
+| Start command | 空欄 |
+| 環境変数 | [runpod.audio.env.example](runpod.audio.env.example) |
+
+[NVIDIAの対応表](https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html)ではCUDA13.xの最低ドライバー系列は580です。PodのGPU名だけでなくホストドライバーを確認してください。CUDAの実演算preflightは重み取得前に実行します。古いホストでCUDA12.8へ無理にフォールバックしたり、コンテナ内でホストドライバーを交換したりしません。
+
+**追加重みは44,976,750,982 bytes（44.98 GB）**、WAN基本分と合計81.05 GB、全WAN LoRAを含めると約88.98 GB（検出器・出力・空き領域は別）。毎回取得する運用では、この転送時間が追加されます。音声対応版だけに含め、通常WAN版は追加DLゼロ。既存のXet並列・aria2再開・SHA検証を再利用し、モデル重みはイメージへ入れません。音声モデルを利用するHFアカウントで[作者の利用条件](https://huggingface.co/darksidewalker/DaSiWa-LTX2.3)への同意が必要です。Civitaiトークンだけではこの追加モデルは取得できません。
+
+検証範囲: CPUでnative Comfy AV concat/splitとmask受け渡し、workflowスキーマ、実MP4の音声合成、映像パケット/SHA・PTS/DTS・fps・尺の維持、キャンセル時の片付けを検査。**チェックポイントを使った実GPU音声生成・音質/同期・速度・VRAMは未検証**。小さなCPUテストを実モデル推論成功と混同しません。
 
 ## RunPod設定
 

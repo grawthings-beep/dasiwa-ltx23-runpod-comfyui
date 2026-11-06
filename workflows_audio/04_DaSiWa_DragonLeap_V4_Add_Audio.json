@@ -1,0 +1,177 @@
+{
+  "id": "7c28fa51-f7ff-5856-aa3b-98a83d5ba0f2",
+  "revision": 1,
+  "last_node_id": 4,
+  "last_link_id": 3,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "LoadVideo",
+      "title": "01 · Upload FINISHED MP4 · <= 7 seconds",
+      "pos": [
+        40,
+        60
+      ],
+      "size": [
+        450,
+        440
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VIDEO",
+          "type": "VIDEO",
+          "links": [
+            1,
+            2
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadVideo"
+      },
+      "widgets_values": [
+        "upload-your-finished-video.mp4"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "DaSiWaLTXAudio",
+      "title": "02 · Describe SOUND · DragonLeap V4",
+      "pos": [
+        550,
+        60
+      ],
+      "size": [
+        500,
+        440
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "AUDIO",
+          "type": "AUDIO",
+          "links": [
+            3
+          ]
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "DaSiWaLTXAudio"
+      },
+      "widgets_values": [
+        "Soft fabric rustling follows the visible movement, with quiet room ambience. No speech is present. No music is present.",
+        42,
+        "fixed",
+        640,
+        true
+      ]
+    },
+    {
+      "id": 3,
+      "type": "DaSiWaMuxAudio",
+      "title": "03 · Save · Original pixels / FPS / mosaic kept",
+      "pos": [
+        1110,
+        60
+      ],
+      "size": [
+        480,
+        440
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video",
+          "type": "VIDEO",
+          "link": 2
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "link": 3
+        }
+      ],
+      "outputs": [],
+      "properties": {
+        "Node name for S&R": "DaSiWaMuxAudio"
+      },
+      "widgets_values": [
+        "DaSiWa/audio",
+        20
+      ]
+    },
+    {
+      "id": 4,
+      "type": "Note",
+      "title": "READ ME · Sound-only postprocessing",
+      "pos": [
+        40,
+        570
+      ],
+      "size": [
+        1550,
+        380
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "properties": {},
+      "widgets_values": [
+        "AUDIO IMAGE ONLY: wan22-v9-ltxaudio-cu130 / AUDIO_PROFILE=dragonleap-v4\nFinish WAN generation (including RIFE, upscale, mosaic), save the MP4, then upload it here.\nNo WAN re-generation. The saver stream-copies the ORIGINAL video and REPLACES its audio.\nOne H.264/H.265 MP4, up to 7 seconds. Same duration, resolution and FPS; output is a NEW file.\nDescribe audible events and their visible timing, not just the picture. Seed stays fixed for comparison.\nreference_max_side reduces ONLY the conditioning copy. 640 default; 512/384 reduce audio inference memory.\nrefine_audio ON: 8+4+2 steps / CFG1 / euler_cfg_pp / linear_quadratic. OFF: 8-step trial, quality may differ.\nCFG1 ignores negatives. State No speech / No music in the positive prompt if needed; not guaranteed.\nedge_fade_ms=20 reduces boundary clicks; a perceptually seamless sound loop is NOT guaranteed.\nUses the exact DragonLeap V4 INT8 ConvRot + Gemma / projection / VAEs from ltx23-i2v-runpod.\nThis NEW frozen-video mode is experimental, NOT official Foley and NOT the original joint-video workflow.\nAdditional models: 44.98 GB. CUDA13-compatible host driver required. GPU quality/speed not validated by CPU CI."
+      ]
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "VIDEO"
+    ],
+    [
+      2,
+      1,
+      0,
+      3,
+      0,
+      "VIDEO"
+    ],
+    [
+      3,
+      2,
+      0,
+      3,
+      1,
+      "AUDIO"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.65,
+      "offset": [
+        30,
+        30
+      ]
+    }
+  },
+  "version": 0.4
+}

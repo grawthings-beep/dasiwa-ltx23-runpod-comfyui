@@ -22,6 +22,25 @@ def truth(value):
     return str(value).lower() in ("1", "true", "yes", "on")
 
 
+def audio_enabled():
+    profile = os.environ.get("AUDIO_PROFILE", "none").lower()
+    if profile not in ("none", "dragonleap-v4"):
+        raise ValueError("AUDIO_PROFILE must be none or dragonleap-v4")
+    if profile == "dragonleap-v4" and os.environ.get("AUDIO_RUNTIME") != "dragonleap-v4":
+        raise RuntimeError("DragonLeap INT8 ConvRot requires the wan22-v9-ltxaudio-cu130 image; do not set AUDIO_RUNTIME manually")
+    return profile != "none"
+
+
+def add_audio_assets(selected):
+    if audio_enabled():
+        assets = load_manifest(BUNDLE / "config/audio-models.json")
+        selected = {**selected, "assets": selected["assets"] + assets}
+        if len({a["path"] for a in selected["assets"]}) != len(selected["assets"]) or len({a["id"] for a in selected["assets"]}) != len(selected["assets"]):
+            raise ValueError("Duplicate audio model asset")
+        print(f"AUDIO PROFILE: dragonleap-v4 / {len(assets)} files / {sum(a['size'] for a in assets)/1e9:.2f} GB; experimental V2A", flush=True)
+    return selected
+
+
 def comfy_command(root, config):
     extra = shlex.split(os.environ.get("COMFYUI_ARGS", ""))
     # Preserve CUDA device UUIDs and the native dtype. Never set highvram or
@@ -36,6 +55,7 @@ def comfy_command(root, config):
             "--reserve-vram", os.environ.get("COMFYUI_RESERVE_VRAM", "2"),
             "--preview-method", "none", "--use-pytorch-cross-attention", "--disable-auto-launch",
             "--disable-api-nodes", "--disable-all-custom-nodes", "--whitelist-custom-nodes", "DaSiWa-WAN",
+            *(["DaSiWa-LTX-Audio"] if audio_enabled() else []),
             "--max-upload-size", "300", *extra]
 
 
@@ -46,8 +66,18 @@ def prepare(root, config):
     paths = {"wan_workspace": {"base_path": str(root), **{name: "models/" + name for name in ("diffusion_models", "text_encoders", "vae", "loras", "auto_mosaic", "rife", "upscale_models")}}}
     # JSON is valid YAML, and quotes special characters in mounted paths safely.
     atomic_json(config / "extra-model-paths.yaml", paths)
-    destination = root / "user/default/workflows/DaSiWa-WAN"
-    for source in (BUNDLE / "workflows").glob("*.json"):
+    copy_workflows(BUNDLE / "workflows", root / "user/default/workflows/DaSiWa-WAN", config)
+    if audio_enabled():
+        copy_workflows(BUNDLE / "workflows_audio", root / "user/default/workflows/DaSiWa-Audio", config)
+    from PIL import Image
+    example = root / "input" / "upload-your-image.png"
+    if not example.exists():
+        Image.new("RGB", (720, 960), (90, 130, 165)).save(example)
+
+
+def copy_workflows(sources, destination, config):
+    destination.mkdir(parents=True, exist_ok=True)
+    for source in sources.glob("*.json"):
         target = destination / source.name
         if target.exists() and target.read_bytes() != source.read_bytes():
             backup = config / "workflow-backups" / (str(time.time_ns()) + "-" + source.name)
@@ -55,10 +85,6 @@ def prepare(root, config):
             target.replace(backup)
         if not target.exists():
             target.write_bytes(source.read_bytes())
-    from PIL import Image
-    example = root / "input" / "upload-your-image.png"
-    if not example.exists():
-        Image.new("RGB", (720, 960), (90, 130, 165)).save(example)
 
 
 def stop(child):
@@ -134,7 +160,7 @@ def main():
             raise RuntimeError("Startup status server could not bind port 8188")
         manifest = config / "selected-models.json"
         lora_profile = os.environ.get("LORA_PROFILE", "all").lower()
-        selected = selected_manifest(BUNDLE / "config/models.json", BUNDLE / "config/loras.json", lora_profile)
+        selected = add_audio_assets(selected_manifest(BUNDLE / "config/models.json", BUNDLE / "config/loras.json", lora_profile))
         atomic_json(manifest, selected)
         loras = [a for a in selected["assets"] if a["path"].startswith("loras/")]
         print(f"LORA PROFILE: {lora_profile} / {len(loras)} files / {sum(a['size'] for a in loras)/1e9:.2f} GB; workflow switches default OFF", flush=True)
