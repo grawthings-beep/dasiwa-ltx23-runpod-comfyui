@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -83,6 +84,17 @@ class SpeechConfigTests(unittest.TestCase):
         self.assertEqual(replace_once("abc", "b", "x"), "axc")
         for text in ("ac", "abbc"):
             with self.assertRaises(ValueError): replace_once(text, "b", "x")
+
+    def test_onnx_pinned_bytes_and_tamper_receipt(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "detector.onnx"
+            data = b"pinned synthetic ONNX fixture"
+            asset = {"format": "onnx", "size": len(data), "sha256": hashlib.sha256(data).hexdigest()}
+            path.write_bytes(data)
+            self.assertTrue(models.valid(path, asset))
+            self.assertTrue(models.receipt(path).exists())
+            path.write_bytes(b"X" + data[1:])
+            self.assertIn("SHA256", models.validation_error(path, asset, record=False))
 
 
 class SpeechMediaTests(unittest.TestCase):

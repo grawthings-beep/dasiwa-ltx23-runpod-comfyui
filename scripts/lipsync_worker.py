@@ -1,5 +1,6 @@
 """Isolated inference adapter. No Comfy imports, no model downloads, no WAN changes."""
 import json
+import math
 import os
 from pathlib import Path
 import sys
@@ -15,6 +16,7 @@ from latentsync.pipelines.lipsync_pipeline import LipsyncPipeline
 from latentsync.whisper.audio2feature import Audio2Feature
 from latentsync.utils.face_detector import FaceDetector
 from lipsync_composite import composite
+from models import validation_error
 
 BUNDLE = Path(__file__).resolve().parent.parent
 
@@ -23,8 +25,9 @@ def check_models(root):
     data = json.loads((BUNDLE / "config/lipsync-models.json").read_text())
     for a in data["assets"]:
         path = root / a["path"].removeprefix("lipsync/")
-        if not path.is_file() or path.stat().st_size != a["size"]:
-            raise RuntimeError(f"Missing/invalid lip-sync asset: {a['id']}. Restart with DOWNLOAD_MODELS=1.")
+        error = validation_error(path, a)
+        if error:
+            raise RuntimeError(f"Missing/invalid lip-sync asset: {a['id']} ({error}). Restart with DOWNLOAD_MODELS=1.")
 
 
 class ExactAudio(Audio2Feature):
@@ -95,11 +98,17 @@ def run(job):
     del ckpt
     unet.to(dtype=torch.float16)
     pipeline = StrictPipeline(vae, encoder, unet, DDIMScheduler.from_pretrained("/opt/LatentSync/configs")).to("cuda")
+    completed = 0
+    total = math.ceil(job["count"] / 16) * job["steps"]
+    def progress(step, timestep, latents):
+        nonlocal completed
+        completed += 1
+        print(f"LIPSYNC_PROGRESS {completed} {total}", flush=True)
     # No DeepCache, no changed WAN sampler/LoRA strengths.
     pipeline(video_path=job["frames"], audio_path=job["audio"], video_out_path=job["output"],
              num_frames=16, video_fps=25, num_inference_steps=job["steps"], guidance_scale=job["guidance"],
              weight_dtype=torch.float16, width=512, height=512,
-             mask_image_path="/opt/LatentSync/latentsync/utils/mask.png")
+             mask_image_path="/opt/LatentSync/latentsync/utils/mask.png", callback=progress)
     print("LIPSYNC COMPLETE: output frames ready; original speech will be muxed by ComfyUI", flush=True)
 
 

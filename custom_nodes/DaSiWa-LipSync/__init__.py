@@ -3,6 +3,7 @@ import gc
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import time
@@ -12,6 +13,7 @@ import torch
 import folder_paths
 import comfy.model_management as mm
 from comfy_api.latest import ComfyExtension, io, ui
+from comfy.utils import ProgressBar
 from . import media
 
 
@@ -34,6 +36,9 @@ def worker(job, folder):
            "LIPSYNC_MODELS": str(models_root()), "PYTHONNOUSERSITE": "1"}
     env.pop("PYTHONPATH", None)
     log = Path(folder) / "worker.log"
+    progress = ProgressBar(100) if job["mode"] == "sync" else None
+    last_report = 0
+    print(f"LIPSYNC: starting {job['mode']} worker", flush=True)
     with log.open("w", encoding="utf-8") as output:
         process = subprocess.Popen([str(python), "/opt/wan22/scripts/lipsync_worker.py", str(spec)],
                                    cwd="/opt/LatentSync", env=env, stdout=output, stderr=subprocess.STDOUT)
@@ -41,6 +46,14 @@ def worker(job, folder):
         try:
             while process.poll() is None:
                 interrupt()
+                if progress is not None and time.monotonic() - last_report > 1:
+                    output.flush()
+                    status = log.read_text(encoding="utf-8", errors="replace")
+                    matches = re.findall(r"LIPSYNC_PROGRESS (\d+) (\d+)", status)
+                    if matches:
+                        done, total = map(int, matches[-1])
+                        progress.update_absolute(done, total)
+                    last_report = time.monotonic()
                 if time.monotonic() - started > 1800:
                     raise TimeoutError("Lip sync exceeded 30 minutes")
                 time.sleep(.25)
