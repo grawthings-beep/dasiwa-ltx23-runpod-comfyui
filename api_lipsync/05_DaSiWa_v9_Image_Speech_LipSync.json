@@ -1,0 +1,370 @@
+{
+  "1": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "upload-your-image.png"
+    },
+    "_meta": {
+      "title": "01 · Upload image"
+    }
+  },
+  "2": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "DasiwaWAN22I2V14BLightspeed_synthseductionHighV9.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "HIGH · SynthSeduction v9"
+    }
+  },
+  "3": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "DasiwaWAN22I2V14BLightspeed_synthseductionLowV9.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "LOW · SynthSeduction v9"
+    }
+  },
+  "19": {
+    "class_type": "DaSiWaLoraHigh",
+    "inputs": {
+      "enabled_1": false,
+      "lora_1": "None",
+      "strength_1": 1.0,
+      "enabled_2": false,
+      "lora_2": "None",
+      "strength_2": 1.0,
+      "enabled_3": false,
+      "lora_3": "None",
+      "strength_3": 1.0,
+      "model": [
+        "2",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "HIGH LoRA · Optional / default OFF"
+    }
+  },
+  "20": {
+    "class_type": "DaSiWaLoraLow",
+    "inputs": {
+      "enabled_1": false,
+      "lora_1": "None",
+      "strength_1": 1.0,
+      "enabled_2": false,
+      "lora_2": "None",
+      "strength_2": 1.0,
+      "enabled_3": false,
+      "lora_3": "None",
+      "strength_3": 1.0,
+      "model": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "LOW LoRA · Optional / default OFF"
+    }
+  },
+  "4": {
+    "class_type": "ModelSamplingSD3",
+    "inputs": {
+      "shift": 5.0,
+      "model": [
+        "19",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "HIGH · Shift 5"
+    }
+  },
+  "5": {
+    "class_type": "ModelSamplingSD3",
+    "inputs": {
+      "shift": 5.0,
+      "model": [
+        "20",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "LOW · Shift 5"
+    }
+  },
+  "6": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "umt5_xxl_fp8_e4m3fn_scaled.safetensors",
+      "type": "wan",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "UMT5 · GPU auto/offload"
+    }
+  },
+  "7": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "Locked-off camera. The subject faces the viewer with a friendly expression, gentle natural head movement and subtle conversational gestures. The face stays clearly visible and mostly front-facing. Consistent character, hairstyle, outfit and lighting.",
+      "clip": [
+        "6",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "02 · Describe the motion"
+    }
+  },
+  "8": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "7",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "CFG 1 · no negative evaluation"
+    }
+  },
+  "9": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "wan_2.1_vae.safetensors"
+    },
+    "_meta": {
+      "title": "Wan 2.1 VAE · correct for A14B"
+    }
+  },
+  "10": {
+    "class_type": "WanImageToVideo",
+    "inputs": {
+      "width": 720,
+      "height": 960,
+      "length": [
+        "32",
+        2
+      ],
+      "batch_size": 1,
+      "positive": [
+        "7",
+        0
+      ],
+      "negative": [
+        "8",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ],
+      "start_image": [
+        "32",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "WAN · Width / Height · duration follows speech"
+    }
+  },
+  "11": {
+    "class_type": "KSamplerAdvanced",
+    "inputs": {
+      "add_noise": "enable",
+      "noise_seed": 123456789,
+      "steps": 4,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "start_at_step": 0,
+      "end_at_step": 2,
+      "return_with_leftover_noise": "enable",
+      "model": [
+        "4",
+        0
+      ],
+      "positive": [
+        "10",
+        0
+      ],
+      "negative": [
+        "10",
+        1
+      ],
+      "latent_image": [
+        "10",
+        2
+      ]
+    },
+    "_meta": {
+      "title": "04 · HIGH · first 2 steps"
+    }
+  },
+  "12": {
+    "class_type": "KSamplerAdvanced",
+    "inputs": {
+      "add_noise": "disable",
+      "noise_seed": 123456789,
+      "steps": 4,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "start_at_step": 2,
+      "end_at_step": 4,
+      "return_with_leftover_noise": "disable",
+      "model": [
+        "5",
+        0
+      ],
+      "positive": [
+        "10",
+        0
+      ],
+      "negative": [
+        "10",
+        1
+      ],
+      "latent_image": [
+        "11",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "05 · LOW · last 2 steps"
+    }
+  },
+  "13": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "12",
+        0
+      ],
+      "vae": [
+        "9",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "06 · Decode · native OOM fallback"
+    }
+  },
+  "17": {
+    "class_type": "DaSiWaRIFE2x",
+    "inputs": {
+      "enabled": true,
+      "source_fps": 16.0,
+      "loop": false,
+      "images": [
+        "13",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "07 · RIFE 4.9 · 16 -> 32 FPS"
+    }
+  },
+  "18": {
+    "class_type": "DaSiWaUpscale2x",
+    "inputs": {
+      "enabled": true,
+      "images": [
+        "33",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "08 · 2x NomosUni SPAN · 1440 x 1920"
+    }
+  },
+  "14": {
+    "class_type": "DaSiWaSaveSpeechMP4",
+    "inputs": {
+      "images": [
+        "35",
+        0
+      ],
+      "audio": [
+        "33",
+        1
+      ],
+      "filename_prefix": "DaSiWa/speech"
+    },
+    "_meta": {
+      "title": "12 · Save original voice + lip-synced MP4"
+    }
+  },
+  "31": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "upload-your-speech.wav"
+    },
+    "_meta": {
+      "title": "02 · Upload recorded dialogue · 0.5–6 seconds"
+    }
+  },
+  "32": {
+    "class_type": "DaSiWaSpeechPlan",
+    "inputs": {
+      "image": [
+        "1",
+        0
+      ],
+      "audio": [
+        "31",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "03 · Face preflight / automatic duration"
+    }
+  },
+  "33": {
+    "class_type": "DaSiWaLipSync",
+    "inputs": {
+      "images": [
+        "17",
+        0
+      ],
+      "audio": [
+        "32",
+        1
+      ],
+      "source_fps": [
+        "17",
+        1
+      ],
+      "seed": 42,
+      "steps": 20,
+      "guidance": 1.5
+    },
+    "_meta": {
+      "title": "09 · Mouth sync · original speech · 25 FPS"
+    }
+  },
+  "35": {
+    "class_type": "DaSiWaAutoMosaic",
+    "inputs": {
+      "images": [
+        "18",
+        0
+      ],
+      "coverage_preset": "JUST",
+      "confidence": 0.3,
+      "iou_threshold": 0.5,
+      "block_size": 20,
+      "max_gap_frames": 3,
+      "target_classes": "pussy,penis,testicles",
+      "device": "auto",
+      "trim_last_frame": false
+    },
+    "_meta": {
+      "title": "09 · Auto Mosaic · JUST · output only"
+    }
+  }
+}

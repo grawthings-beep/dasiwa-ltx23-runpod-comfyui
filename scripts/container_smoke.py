@@ -8,7 +8,7 @@ import tempfile
 import time
 import urllib.request
 from models import load_manifest, valid, safe_path
-from startup import BUNDLE, comfy_command, prepare, stop, audio_enabled
+from startup import BUNDLE, comfy_command, prepare, stop, audio_enabled, lipsync_enabled
 
 
 def fetch_post_models(root):
@@ -58,6 +58,8 @@ def main():
             graphs = list((BUNDLE / "api").glob("*.json"))
             if audio_enabled():
                 graphs += list((BUNDLE / "api_audio").glob("*.json"))
+            if lipsync_enabled():
+                graphs += list((BUNDLE / "api_lipsync").glob("*.json"))
             for path in graphs:
                 graph = json.loads(path.read_text())
                 for key, node in graph.items():
@@ -69,7 +71,7 @@ def main():
                         if isinstance(value, list):
                             upstream = info[graph[value[0]]["class_type"]]
                             assert upstream["output"][value[1]] == inputs[name][0], (key, name, "type mismatch")
-                        elif isinstance(inputs[name][0], list) and name not in ("unet_name", "clip_name", "vae_name", "image", "file"):
+                        elif isinstance(inputs[name][0], list) and name not in ("unet_name", "clip_name", "vae_name", "image", "file", "audio"):
                             assert value in inputs[name][0], (key, name, value)
                 print(f"SCHEMA OK: {path.name}", flush=True)
             import av
@@ -102,6 +104,36 @@ def main():
                     frames = list(container.decode(video=0))
                     assert len(frames) == expected and frames[0].width == width
                 print(f"POST SMOKE OK: {name}: {expected} frames, {fps}fps, {width}x{width}", flush=True)
+            if lipsync_enabled():
+                import importlib.util
+                import numpy as np
+                module_path = Path("/opt/ComfyUI/custom_nodes/DaSiWa-LipSync/media.py")
+                spec = importlib.util.spec_from_file_location("speech_smoke_media", module_path)
+                media = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(media)
+                wave = (.1*np.sin(np.arange(48000)*2*np.pi*440/48000)).astype(np.float32)[None, :]
+                media.write_wave(root / "input/speech-smoke.wav", wave, 48000)
+                prompt = {
+                    "1": {"class_type": "EmptyImage", "inputs": {"width": 64, "height": 64, "batch_size": 25, "color": 6724044}},
+                    "2": {"class_type": "LoadAudio", "inputs": {"audio": "speech-smoke.wav"}},
+                    "3": {"class_type": "DaSiWaSaveSpeechMP4", "inputs": {"images": ["1", 0], "audio": ["2", 0], "filename_prefix": "smoke/speech"}},
+                }
+                prompt_id = api("/prompt", {"prompt": prompt, "client_id": "speech-smoke"})["prompt_id"]
+                for _ in range(60):
+                    history = api("/history/" + prompt_id)
+                    if prompt_id in history:
+                        assert history[prompt_id]["status"]["status_str"] == "success", history
+                        break
+                    time.sleep(1)
+                else:
+                    raise TimeoutError("Speech MP4 smoke timed out")
+                files = list((root / "output/smoke").glob("speech_*.mp4"))
+                assert len(files) == 1
+                with av.open(str(files[0])) as container:
+                    assert len(container.streams.audio) == 1
+                    assert container.streams.video[0].average_rate == 25
+                    assert len(list(container.decode(video=0))) == 25
+                print("SPEECH SAVE SMOKE OK: native LoadAudio -> native speech saver -> 25fps MP4/AAC", flush=True)
             print("SMOKE PASSED: CPU startup, all schemas, real RIFE/SPAN weights -> random-weight detector -> MP4 encode/decode. ON/OFF FPS + single loop trim verified. Official detector weights and WAN GPU inference NOT RUN.", flush=True)
         finally:
             stop(child)

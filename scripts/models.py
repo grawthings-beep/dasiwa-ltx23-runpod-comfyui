@@ -61,7 +61,7 @@ def load_manifest(path):
         if a["id"] in seen or not re.fullmatch(r"[a-z0-9_-]+", a["id"]):
             raise ValueError("Duplicate or invalid asset id")
         seen.add(a["id"])
-        if a.get("format", "safetensors") not in ("safetensors", "torch-state-dict"):
+        if a.get("format", "safetensors") not in ("safetensors", "torch-state-dict", "onnx"):
             raise ValueError("Unsupported model format")
         if not re.fullmatch(r"[0-9a-f]{64}", a["sha256"]) or a["size"] <= 0:
             raise ValueError("Models must have exact size and SHA256")
@@ -110,6 +110,12 @@ def validation_error(path, asset, record=True):
     actual = digest(path)
     if actual != asset["sha256"]:
         return f"SHA256 mismatch: expected {asset['sha256']}, got {actual}"
+    if asset.get("format") == "onnx":
+        # Exact pinned bytes here; the isolated lip-sync worker validates the
+        # ONNX graph/session before WAN inference. No ORT in the Comfy process.
+        if record:
+            atomic_json(receipt(path), marker)
+        return None
     # Pinned RIFE uses a PyTorch ZIP state dict. Never unpickle in the downloader;
     # the runtime uses weights_only=True after checking this exact identity again.
     if asset.get("format") == "torch-state-dict":

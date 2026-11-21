@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "upstream_commit": "a229c3948406bc2cf6eaf4873e662e70c6a04746",
+  "face_weights_notice": "InsightFace pretrained buffalo_l: non-commercial research only. Mirror files are SHA-pinned; no recognition model is downloaded.",
+  "assets": [
+    {"id":"lipsync-unet","path":"lipsync/latentsync_unet.pt","format":"torch-state-dict","repo":"ByteDance/LatentSync-1.6","revision":"c42c7e6c8e9c213626389fa7d9a3c444b8536353","file":"latentsync_unet.pt","size":5072222488,"sha256":"0a478e89eb660f82da4c35dbdde8a5adfb27f99d1b4e50edd03729e1e98316d3"},
+    {"id":"lipsync-whisper","path":"lipsync/whisper/tiny.pt","format":"torch-state-dict","repo":"ByteDance/LatentSync-1.6","revision":"c42c7e6c8e9c213626389fa7d9a3c444b8536353","file":"whisper/tiny.pt","size":75572083,"sha256":"65147644a518d12f04e32d6f3b26facc3f8dd46e5390956a9424a650c0ce22b9"},
+    {"id":"lipsync-vae","path":"lipsync/vae/diffusion_pytorch_model.safetensors","repo":"stabilityai/sd-vae-ft-mse","revision":"31f26fdeee1355a5c34592e401dd41e45d25a493","file":"diffusion_pytorch_model.safetensors","size":334643276,"sha256":"a1d993488569e928462932c8c38a0760b874d166399b14414135bd9c42df5815"},
+    {"id":"lipsync-face-detection","path":"lipsync/insightface/models/buffalo_l/det_10g.onnx","format":"onnx","repo":"public-data/insightface","revision":"33c1063c49c785b7652d3fd529f86fa4f149392b","file":"models/buffalo_l/det_10g.onnx","size":16923827,"sha256":"5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91"},
+    {"id":"lipsync-face-landmarks","path":"lipsync/insightface/models/buffalo_l/2d106det.onnx","format":"onnx","repo":"public-data/insightface","revision":"33c1063c49c785b7652d3fd529f86fa4f149392b","file":"models/buffalo_l/2d106det.onnx","size":5030888,"sha256":"f001b856447c413801ef5c42091ed0cd516fcd21f2d6b79635b1e733a7109dbf"}
+  ]
+}

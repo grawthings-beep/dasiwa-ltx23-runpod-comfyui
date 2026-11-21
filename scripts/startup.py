@@ -41,6 +41,28 @@ def add_audio_assets(selected):
     return selected
 
 
+def lipsync_enabled():
+    profile = os.environ.get("LIPSYNC_PROFILE", "none").lower()
+    if profile not in ("none", "latentsync-1.6"):
+        raise ValueError("LIPSYNC_PROFILE must be none or latentsync-1.6")
+    if profile != "none" and os.environ.get("LIPSYNC_RUNTIME") != "latentsync-1.6":
+        raise RuntimeError("Lip sync requires the wan22-v9-lipsync-cu128 image; do not set LIPSYNC_RUNTIME manually")
+    if profile != "none" and audio_enabled():
+        raise ValueError("Lip sync uses your speech file, not LTX audio generation: set AUDIO_PROFILE=none")
+    return profile != "none"
+
+
+def add_lipsync_assets(selected):
+    if not lipsync_enabled():
+        return selected
+    assets = load_manifest(BUNDLE / "config/lipsync-models.json")
+    merged = selected["assets"] + assets
+    if len({a["id"] for a in merged}) != len(merged) or len({a["path"] for a in merged}) != len(merged):
+        raise ValueError("Duplicate lip-sync model asset")
+    print(f"LIPSYNC PROFILE: latentsync-1.6 / {len(assets)} files / {sum(a['size'] for a in assets)/1e9:.2f} GB; original speech input", flush=True)
+    return {**selected, "assets": merged}
+
+
 def comfy_command(root, config):
     extra = shlex.split(os.environ.get("COMFYUI_ARGS", ""))
     # Preserve CUDA device UUIDs and the native dtype. Never set highvram or
@@ -56,6 +78,7 @@ def comfy_command(root, config):
             "--preview-method", "none", "--use-pytorch-cross-attention", "--disable-auto-launch",
             "--disable-api-nodes", "--disable-all-custom-nodes", "--whitelist-custom-nodes", "DaSiWa-WAN",
             *(["DaSiWa-LTX-Audio"] if audio_enabled() else []),
+            *(["DaSiWa-LipSync"] if lipsync_enabled() else []),
             "--max-upload-size", "300", *extra]
 
 
@@ -69,6 +92,8 @@ def prepare(root, config):
     copy_workflows(BUNDLE / "workflows", root / "user/default/workflows/DaSiWa-WAN", config)
     if audio_enabled():
         copy_workflows(BUNDLE / "workflows_audio", root / "user/default/workflows/DaSiWa-Audio", config)
+    if lipsync_enabled():
+        copy_workflows(BUNDLE / "workflows_lipsync", root / "user/default/workflows/DaSiWa-LipSync", config)
     from PIL import Image
     example = root / "input" / "upload-your-image.png"
     if not example.exists():
@@ -160,7 +185,7 @@ def main():
             raise RuntimeError("Startup status server could not bind port 8188")
         manifest = config / "selected-models.json"
         lora_profile = os.environ.get("LORA_PROFILE", "all").lower()
-        selected = add_audio_assets(selected_manifest(BUNDLE / "config/models.json", BUNDLE / "config/loras.json", lora_profile))
+        selected = add_lipsync_assets(add_audio_assets(selected_manifest(BUNDLE / "config/models.json", BUNDLE / "config/loras.json", lora_profile)))
         atomic_json(manifest, selected)
         loras = [a for a in selected["assets"] if a["path"].startswith("loras/")]
         print(f"LORA PROFILE: {lora_profile} / {len(loras)} files / {sum(a['size'] for a in loras)/1e9:.2f} GB; workflow switches default OFF", flush=True)

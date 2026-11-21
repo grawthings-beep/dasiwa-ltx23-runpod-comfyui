@@ -2,6 +2,28 @@
 
 このrepoの標準イメージは **WAN 2.2用**。旧LTXコードは`archive/ltx23/`に退避し、コンテナには含めません。別イメージに、完成動画へ音だけを追加するLTX 2.3ワークフローを追加しました。旧イメージの`0.2.2`/`latest`タグは上書きしません。
 
+## 任意追加: 画像＋録音したセリフから口パク動画（05・試験版）
+
+**WAN v9を変更せず、生成後にLatentSync 1.6で口元を補正する別workflow**です。音声を新規生成するLTX版04とは別物。文字からの音声合成ではなく、用意したWAV/MP3等のセリフを使用します。
+
+- Image: `ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:wan22-v9-lipsync-cu128`。Actionsの`lipsync-image`成功後に、同commitの`wan22-v9-lipsync-cu128-sha-<40桁SHA>`で固定。
+- 環境変数: **`LIPSYNC_PROFILE=latentsync-1.6` / `AUDIO_PROFILE=none`**。全設定は[runpod.lipsync.env.example](runpod.lipsync.env.example)。通常イメージへ変数だけ追加しても使えません。
+- workflow一覧 → `DaSiWa-LipSync` → `05_DaSiWa_v9_Image_Speech_LipSync`。
+- 画像1枚と **0.5〜6秒のセリフ音声**をアップロード。動きのpromptを入力しRun。セリフの長さからWANのフレーム数を自動設定します。
+- **1人・正面寄り・口を隠さない画像**が対象。生成前に顔検出と重みを確認。アニメ顔、横顔、小さな顔では失敗する場合があります。途中フレームで検出失敗した場合も、未補正の動画を成功扱いで保存しません。
+
+処理順は **WAN 16fps → RIFE 32fps → 時刻を維持して25fps化 → LatentSync → SPAN 2x → 自動モザイク → 音付きMP4**。WAN本体・High/Low・4step・LoRA設定は既存01と同じ。口パクは20step/guidance1.5/512px顔クロップ、別プロセスで実行します。開始前にWANのGPUモデルをoffloadし、終了時に口パク側のプロセスを解放します。目・髪・背景を含む元フレームへ、固定口元マスクの補正範囲だけを再合成しますが、顔の同一性や口の自然さは保証しません。
+
+最終出力はLatentSyncの標準に合わせた **25fps**。声の速度・内容を変更せずAACへ符号化し、尺は最大40ms未満の末尾無音追加で丸めます。音声を切る・映像を往復させる・最初の画像を差し込む処理はありません。**会話用でありシームレスループではありません**。口パク後にRIFEやフレーム削除を追加しないでください。従来の01〜03は変更しません。
+
+追加重みは **5,504,392,562 bytes（約5.50 GB）**。LTXの約45GBは不要。通常WAN版のダウンロードは増えません。新規PodではWAN/全LoRA/余裕分と合わせて約60GBの**実空き容量**が必要です。出力・一時ファイルも見込み、実際に`/workspace`へマウントされたPodローカル100GBを目安にしてください。設定画面のサイズではなく`df -h /workspace`の空きを確認。Network Volume不要。RAM64GB以上を目安、GPU実ピーク・処理秒数は未計測です。口パク工程分だけ生成時間は増えます。
+
+通常ComfyUIのTorch/CUDAを変更せず、専用venvへ依存を分離します。起動時pip/git/コンパイルなし。重みはrevision・サイズ・SHA256固定、既存の並列ダウンローダーで取得し、イメージには含めません。
+
+**利用条件:** [InsightFace公式](https://github.com/deepinsight/insightface/tree/master/python-package)の学習済み`buffalo_l`（顔検出・106点ランドマーク）は**非商用研究目的限定**です。この配布構成をそのまま商用・販売用途に使えるとは案内できません。[LatentSync 1.6のモデル条件](https://huggingface.co/ByteDance/LatentSync-1.6)、[VAEの条件](https://huggingface.co/stabilityai/sd-vae-ft-mse)も確認してください。顔認証モデルは取得しません。
+
+検証範囲: 長さ/リサンプル/音声維持/キャンセル/マスク外画素/グラフ接続の回帰試験。コンテナではCPU依存import、小型の実UNet音声・時間Attention、metaロード、実ONNX顔検出/ランドマーク、Comfyの実schemaと音付きMP4保存を検査します。**実チェックポイントでのGPU口パク推論・アニメの見た目・同期精度・VRAM・速度は未検証**です。
+
 ## 任意追加: 指定LTX repoのモデルで完成動画へ音声を追加
 
 通常のWANイメージはCUDA12.8のままです。音声対応版は **`ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:wan22-v9-ltxaudio-cu130`**。Actions成功後、そのcommitの`wan22-v9-ltxaudio-cu130-sha-<40桁SHA>`タグで固定してください。起動済みPodのコードやイメージが自動更新されるわけではありません。

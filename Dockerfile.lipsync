@@ -1,0 +1,33 @@
+# syntax=docker/dockerfile:1.7
+# CI supplies the SAME commit's validated WAN base; local builds use last known base.
+ARG BASE_IMAGE=ghcr.io/grawthings-beep/dasiwa-ltx23-runpod-comfyui:wan22-v9-cu128-sha-8549ec6372747f9c26217867e7220a9b1babbf98
+FROM ${BASE_IMAGE}
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg build-essential python3-dev \
+    && rm -rf /var/lib/apt/lists/*
+ARG LATENTSYNC_REVISION=a229c3948406bc2cf6eaf4873e662e70c6a04746
+RUN git init /opt/LatentSync && git -C /opt/LatentSync remote add origin https://github.com/bytedance/LatentSync.git \
+    && git -C /opt/LatentSync fetch --depth=1 origin ${LATENTSYNC_REVISION} \
+    && git -C /opt/LatentSync checkout --detach FETCH_HEAD && rm -rf /opt/LatentSync/.git
+# Separate NumPy/Diffusers/Transformers from ComfyUI. Only Torch/CUDA shared.
+COPY config/lipsync-requirements.txt /opt/wan22/lipsync-requirements.txt
+RUN python -m venv --system-site-packages /opt/lipsync-venv \
+    && env -u PIP_CONSTRAINT /opt/lipsync-venv/bin/python -m pip install numpy==1.26.4 Cython==3.0.12 setuptools==75.8.2 wheel==0.45.1 \
+    && env -u PIP_CONSTRAINT /opt/lipsync-venv/bin/python -m pip install --no-build-isolation \
+       -r /opt/wan22/lipsync-requirements.txt -c /opt/wan22/lipsync-requirements.txt
+COPY scripts /opt/wan22/scripts
+COPY config/lipsync-models.json config/lipsync-vae.json /opt/wan22/config/
+COPY custom_nodes/DaSiWa-LipSync /opt/ComfyUI/custom_nodes/DaSiWa-LipSync
+COPY workflows_lipsync /opt/wan22/workflows_lipsync
+COPY api_lipsync /opt/wan22/api_lipsync
+COPY tests /opt/wan22/tests
+RUN python /opt/wan22/scripts/patch_latentsync.py /opt/LatentSync \
+    && python /opt/wan22/scripts/gpu_preflight.py --stack-only \
+    && /opt/lipsync-venv/bin/python /opt/wan22/scripts/gpu_preflight.py --stack-only \
+    && /opt/lipsync-venv/bin/python /opt/wan22/scripts/lipsync_smoke.py
+ENV LIPSYNC_RUNTIME=latentsync-1.6 LIPSYNC_PROFILE=latentsync-1.6 AUDIO_PROFILE=none
+RUN python /opt/wan22/scripts/container_smoke.py
+ARG BUNDLE_REVISION=unknown
+ENV BUNDLE_REVISION=${BUNDLE_REVISION}
+LABEL org.opencontainers.image.revision="${BUNDLE_REVISION}" io.grawthings.lipsync-revision="${LATENTSYNC_REVISION}"
